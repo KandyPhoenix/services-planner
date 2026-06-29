@@ -143,9 +143,11 @@ var S=load();
 // Private one-time import via #seed=  (data lives in the link, never in the published code)
 (function(){
   try{
-    var h=location.hash||'';var i=h.indexOf('seed=');
-    if(i>-1){
-      var b=h.substring(i+5).replace(/ /g,'+');
+    var src=(location.search||'')+(location.hash||'');
+    var m=src.match(/[?#&]seed=([^&#]+)/);
+    if(m){
+      var b=decodeURIComponent(m[1]).replace(/-/g,'+').replace(/_/g,'/').replace(/ /g,'+');
+      while(b.length%4)b+='=';
       var bin=atob(b);
       var json=decodeURIComponent(Array.prototype.map.call(bin,function(c){return '%'+('00'+c.charCodeAt(0).toString(16)).slice(-2);}).join(''));
       var d=JSON.parse(json);
