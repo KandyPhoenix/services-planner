@@ -172,7 +172,20 @@ function lastDom(y,m){return new Date(y,m+1,0).getDate();}
 function esc(s){return (''+s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function money(n){return '$'+(n||0).toLocaleString();}
 
-var DEFAULT={rules:[],oneoffs:[],done:{}};
+var DEFAULT={rules:[
+ {id:'lori-social',client:'Lori',type:'Social',title:'Social post — FB & IG',freq:'weekly',dow:1,start:'2026-07-01',active:true},
+ {id:'lori-linkedin',client:'Lori',type:'LinkedIn',title:'LinkedIn post',freq:'biweekly',anchor:'2026-07-08',start:'2026-07-01',active:true},
+ {id:'lori-blog',client:'Lori',type:'Blog',title:'Blog — publish this month',freq:'monthly',dom:24,start:'2026-07-01',active:true},
+ {id:'inv-social',client:'Lori',type:'Invoice',title:'Social media invoice due',freq:'monthly',dom:1,start:'2026-07-01',amount:150,active:true},
+ {id:'inv-linkedin',client:'Lori',type:'Invoice',title:'LinkedIn invoice due',freq:'monthly',dom:1,start:'2026-07-01',amount:100,active:true},
+ {id:'inv-seo',client:'Lori',type:'Invoice',title:'SEO package invoice due',freq:'monthly',dom:1,start:'2026-07-01',amount:575,active:true},
+ {id:'lori-qreport',client:'Lori',type:'Report',title:'Quarterly performance report',freq:'quarterly',dom:31,start:'2026-07-01',active:true},
+ {id:'lori-portal',client:'Lori',type:'Portal',title:'Update client portal',freq:'monthly',dom:3,start:'2026-07-01',active:true}
+],oneoffs:[
+ {id:'jun-blog',client:'Lori',type:'Blog',title:'Blog post (Grief)',due:'2026-06-20',done:true},
+ {id:'jun-smsetup',client:'Lori',type:'Setup',title:'Social media setup (FB + IG)',due:'2026-06-29',amount:200,done:true},
+ {id:'jun-lisetup',client:'Lori',type:'Setup',title:'LinkedIn setup',due:'2026-06-29',amount:250,done:false}
+],done:{}};
 function load(){try{var r=JSON.parse(localStorage.getItem(KEY));if(r&&r.rules)return r;}catch(e){}return JSON.parse(JSON.stringify(DEFAULT));}
 function save(){localStorage.setItem(KEY,JSON.stringify(S));}
 var S=load();
