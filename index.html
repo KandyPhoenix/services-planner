@@ -39,7 +39,7 @@
   .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:5px}
   .dow span{text-align:center;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase}
   .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-  .cell{background:var(--panel);border:1px solid var(--line);border-radius:9px;min-height:128px;padding:6px 4px 5px;
+  .cell{background:var(--panel);border:1px solid var(--line);border-radius:9px;min-height:154px;padding:6px 4px 5px;
     cursor:pointer;display:flex;flex-direction:column;gap:3px;overflow:hidden}
   .cell.out{opacity:.32}
   .cell.today{border-color:var(--pink);box-shadow:0 0 0 1px var(--pink) inset}
@@ -47,8 +47,8 @@
   .cell .dn{font-size:12px;font-weight:700;color:var(--text)}
   .cell.today .dn{color:var(--pink)}
   .evs{display:flex;flex-direction:column;gap:2px;overflow:hidden}
-  .ev{font-size:10.5px;line-height:1.25;font-weight:700;padding:3px 5px;border-radius:5px;color:#fff;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ev{font-size:10px;line-height:1.2;font-weight:600;padding:3px 5px;border-radius:5px;color:#fff;
+    overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
   .ev.done{opacity:.4;text-decoration:line-through}
   .more{font-size:9px;color:var(--muted);font-weight:700;padding-left:2px}
   .dayp{margin:16px 0 4px;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px}
@@ -219,8 +219,8 @@ function renderCal(){
     if(di===tIso)cls+=' today';
     if(di===selDate)cls+=' sel';
     var evs='';
-    list.slice(0,5).forEach(function(i){evs+='<div class="ev '+(i.done?'done':'')+'" style="background:'+typeColor(i.type)+'">'+esc(i.type)+'</div>';});
-    if(list.length>5)evs+='<span class="more">+'+(list.length-5)+'</span>';
+    list.slice(0,4).forEach(function(i){evs+='<div class="ev '+(i.done?'done':'')+'" style="background:'+typeColor(i.type)+'">'+esc(i.title)+'</div>';});
+    if(list.length>4)evs+='<span class="more">+'+(list.length-4)+'</span>';
     html+='<div class="'+cls+'" onclick="selectDay(\''+di+'\')"><span class="dn">'+d.getDate()+'</span><div class="evs">'+evs+'</div></div>';
   }
   document.getElementById('cal').innerHTML=html;
