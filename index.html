@@ -70,9 +70,11 @@
     padding:9px 14px;font-size:12.5px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4)}
   .ov{position:fixed;inset:0;background:rgba(0,0,0,.66);display:none;align-items:flex-end;justify-content:center;z-index:50}
   .ov.show{display:flex}
-  .sheet{background:var(--panel);width:100%;max-width:680px;border-radius:18px 18px 0 0;padding:18px 18px 28px;
+  .sheet{position:relative;background:var(--panel);width:100%;max-width:680px;border-radius:18px 18px 0 0;padding:18px 18px 28px;
     max-height:88vh;overflow:auto;border-top:2px solid var(--pink)}
-  .sheet h2{margin:2px 0 12px;font-size:17px}
+  .sheet h2{margin:2px 40px 12px 0;font-size:17px}
+  .xclose{position:absolute;top:14px;right:14px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;line-height:1;z-index:2}
   label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin:11px 0 4px;text-transform:uppercase;letter-spacing:.5px}
   input,select,textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;font-size:15px;
     font-family:inherit;background:var(--panel2);color:var(--text)}
@@ -116,6 +118,7 @@
 <div class="barbtn"><button class="ghost" onclick="openRules()">⚙ Recurring</button><button class="ghost" onclick="openImport()">⤓ Import</button></div>
 
 <div class="ov" id="taskOv"><div class="sheet">
+  <button class="xclose" onclick="closeOv('taskOv')">✕</button>
   <h2 id="taskTitle">Add deliverable</h2>
   <label>What needs doing</label><input id="tTitle" placeholder="e.g. Publish blog post">
   <label>Client</label><input id="tClient" placeholder="Lori" list="clients"><datalist id="clients"></datalist>
@@ -126,6 +129,7 @@
 </div></div>
 
 <div class="ov" id="ruleOv"><div class="sheet">
+  <button class="xclose" onclick="closeOv('ruleOv')">✕</button>
   <h2>⚙ Recurring deliverables</h2>
   <div class="hint" style="margin-bottom:6px">Auto-fill the calendar each week/month. Toggle off to pause.</div>
   <div id="ruleList"></div>
@@ -133,6 +137,7 @@
 </div></div>
 
 <div class="ov" id="impOv"><div class="sheet">
+  <button class="xclose" onclick="closeOv('impOv')">✕</button>
   <h2>⤓ Import deliverables</h2>
   <div class="hint" style="margin-bottom:6px">Paste a setup code or link (from Kandy/Claude) to load deliverables in one tap.</div>
   <textarea id="impText" placeholder="Paste the code or link here…"></textarea>
@@ -168,8 +173,13 @@ function mergeData(d){
   (d.oneoffs||[]).forEach(function(o){if(!S.oneoffs.some(function(x){return x.id===o.id;}))S.oneoffs.push(o);});
   save();
 }
-// one-time import via link
-(function(){try{var src=(location.search||'')+(location.hash||'');if(/seed=/.test(src)){mergeData(decodeSeed(src));history.replaceState(null,'',location.pathname);}}catch(e){}})();
+// one-time import / reset via link
+(function(){try{
+  var src=(location.search||'')+(location.hash||'');
+  if(/[?&#]reset/.test(src)){localStorage.removeItem(KEY);S={rules:[],oneoffs:[],done:{}};}
+  if(/seed=/.test(src))mergeData(decodeSeed(src));
+  if(/reset|seed=/.test(src))history.replaceState(null,'',location.pathname);
+}catch(e){}})();
 
 var viewY,viewM,selDate;
 (function(){var t=todayMid();viewY=t.getFullYear();viewM=t.getMonth();selDate=iso(t);})();
