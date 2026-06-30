@@ -88,6 +88,7 @@
   input,select,textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;font-size:15px;font-family:inherit;background:var(--panel2);color:var(--text)}
   textarea{min-height:70px;resize:vertical}
   input::placeholder,textarea::placeholder{color:#5d5d68}
+  .mvd{width:auto;padding:5px 7px;font-size:12px}
   .save{width:100%;background:var(--pink);color:#fff;border:none;border-radius:11px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;margin-top:16px}
   .rule{border:1px solid var(--line);border-radius:11px;padding:11px;margin:9px 0;background:var(--panel2)}
   .rule .rh{display:flex;align-items:center;gap:10px}
@@ -186,9 +187,10 @@ var DEFAULT={rules:[
 ],oneoffs:[
  {id:'jun-blog',client:'Lori',type:'Blog',title:'Blog post (Grief)',due:'2026-06-20',done:true},
  {id:'jun-smsetup',client:'Lori',type:'Setup',title:'Social media setup (FB + IG)',due:'2026-06-29',amount:200,done:true},
- {id:'jun-lisetup',client:'Lori',type:'Setup',title:'LinkedIn setup',due:'2026-06-29',amount:250,done:false}
-],done:{}};
-function load(){try{var r=JSON.parse(localStorage.getItem(KEY));if(r&&r.rules)return r;}catch(e){}return JSON.parse(JSON.stringify(DEFAULT));}
+ {id:'jun-lisetup',client:'Lori',type:'Setup',title:'LinkedIn setup',due:'2026-06-29',amount:250,done:false},
+ {id:'jun-seo',client:'Lori',type:'Invoice',title:'SEO package invoice',due:'2026-06-01',amount:575,done:true}
+],done:{},skip:{}};
+function load(){try{var r=JSON.parse(localStorage.getItem(KEY));if(r&&r.rules){if(!r.skip)r.skip={};if(!r.done)r.done={};return r;}}catch(e){}return JSON.parse(JSON.stringify(DEFAULT));}
 function save(){localStorage.setItem(KEY,JSON.stringify(S));cloudSave();}
 var docRef=null,cloudReady=false;
 function setSync(t){var b=document.getElementById('syncBadge');if(b)b.textContent=t;}
@@ -207,7 +209,7 @@ function mergeData(d){
   save();
 }
 (function(){try{var src=(location.search||'')+(location.hash||'');
-  if(/[?&#]reset/.test(src)){localStorage.removeItem(KEY);S={rules:[],oneoffs:[],done:{}};}
+  if(/[?&#]reset/.test(src)){localStorage.removeItem(KEY);S={rules:[],oneoffs:[],done:{},skip:{}};}
   if(/seed=/.test(src))mergeData(decodeSeed(src));
   if(/reset|seed=/.test(src))history.replaceState(null,'',location.pathname);
 }catch(e){}})();
@@ -237,7 +239,7 @@ function instancesIn(start,end){
       }
     }
   });
-  return out;
+  return out.filter(function(i){return !(S.skip&&S.skip[i.key]);});
 }
 function inst(r,d){var key=r.id+'|'+iso(d);return{key:key,client:r.client,type:r.type,title:r.title,date:iso(d),done:!!S.done[key],recurring:true,amount:r.amount||0,note:r.note||''};}
 function itemsIn(start,end){
@@ -292,13 +294,21 @@ function renderLegend(){
   document.getElementById('legend').innerHTML=used.map(function(t){return '<span class="lg"><span class="ld" style="background:'+typeColor(t)+'"></span>'+esc(t)+'</span>';}).join('');
 }
 
-function rowHTML(i){
+function rowHTML(i,mv){
   var editb=i.recurring?'':'<button class="mini" onclick="closeOv(\'dayOv\');closeOv(\'sumOv\');openTask(\''+i.id+'\')">✏️</button>';
+  var mvb=mv?'<div style="margin-top:6px;display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--muted)">Move to:</span><input type="date" class="mvd" value="'+i.date+'" onclick="event.stopPropagation()" onchange="moveItem(\''+i.key+'\',this.value)"></div>':'';
   return '<div class="row"><div class="check '+(i.done?'on':'')+'" onclick="toggle(\''+i.key+'\')">'+(i.done?'✓':'')+'</div>'+
     '<div class="rbody"><div class="rtitle '+(i.done?'done':'')+'">'+esc(i.title)+'</div>'+
     (i.amount?'<div class="ramt">'+money(i.amount)+'</div>':'')+
-    (i.note?'<div class="rnote">'+esc(i.note)+'</div>':'')+'</div>'+
+    (i.note?'<div class="rnote">'+esc(i.note)+'</div>':'')+mvb+'</div>'+
     '<span class="tg" style="background:'+typeColor(i.type)+'">'+esc(i.type)+'</span>'+editb+'</div>';
+}
+function moveItem(key,nd){
+  if(!nd)return;if(!S.skip)S.skip={};
+  if(key.indexOf('one|')===0){var id=key.slice(4);var o=S.oneoffs.filter(function(x){return x.id==id;})[0];if(o)o.due=nd;}
+  else{var rid=key.split('|')[0],r=S.rules.filter(function(x){return x.id===rid;})[0];
+    if(r){S.skip[key]=true;S.oneoffs.push({id:'o'+Date.now(),client:r.client,type:r.type,title:r.title,due:nd,amount:r.amount||0,note:r.note||'',done:!!(S.done&&S.done[key])});}}
+  save();selDate=nd;render();openDay();
 }
 
 function selectDay(di){selDate=di;renderMonth();openDay();}
@@ -306,7 +316,7 @@ function openDay(){
   var d=parse(selDate);
   document.getElementById('dayTitle').textContent=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   var list=fil(itemsIn(d,d)).sort(function(a,b){return a.done-b.done;});
-  document.getElementById('dayBody').innerHTML=list.length?list.map(rowHTML).join(''):'<div style="color:var(--muted);padding:10px 0">Nothing due this day. Tap <b style="color:var(--pink)">+</b> to add.</div>';
+  document.getElementById('dayBody').innerHTML=list.length?list.map(function(i){return rowHTML(i,true);}).join(''):'<div style="color:var(--muted);padding:10px 0">Nothing due this day. Tap <b style="color:var(--pink)">+</b> to add.</div>';
   document.getElementById('dayOv').classList.add('show');
 }
 function shiftMonth(n){viewM+=n;if(viewM<0){viewM=11;viewY--;}if(viewM>11){viewM=0;viewY++;}renderMonth();renderLegend();}
@@ -320,8 +330,8 @@ function openSummary(){
   var open=all.filter(function(i){return !i.done;}).sort(function(a,b){return a.date<b.date?-1:1;});
   var billable=all.reduce(function(s,i){return s+(i.amount||0);},0);
   var body='<div class="total">✅ Delivered: <b>'+done.length+'</b> of '+all.length+'</div>';
-  body+=done.length?done.map(rowHTML).join(''):'<div style="color:var(--muted);padding:6px 0">Nothing checked off yet.</div>';
-  if(open.length){body+='<div class="total" style="margin-top:18px;color:var(--text)">⏳ Still to do: '+open.length+'</div>'+open.map(rowHTML).join('');}
+  body+=done.length?done.map(function(i){return rowHTML(i,false);}).join(''):'<div style="color:var(--muted);padding:6px 0">Nothing checked off yet.</div>';
+  if(open.length){body+='<div class="total" style="margin-top:18px;color:var(--text)">⏳ Still to do: '+open.length+'</div>'+open.map(function(i){return rowHTML(i,false);}).join('');}
   body+='<div class="total" style="margin-top:18px">💰 Billable this month: <b>'+money(billable)+'</b></div>';
   document.getElementById('sumBody').innerHTML=body;
   document.getElementById('sumOv').classList.add('show');
