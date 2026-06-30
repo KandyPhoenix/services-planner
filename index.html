@@ -122,7 +122,7 @@
   <h2 id="taskTitle">Add deliverable</h2>
   <label>What needs doing</label><input id="tTitle" placeholder="e.g. Publish blog post">
   <label>Client</label><input id="tClient" placeholder="Lori" list="clients"><datalist id="clients"></datalist>
-  <label>Type</label><select id="tType"><option>Blog</option><option>Social</option><option>LinkedIn</option><option>SEO</option><option>Report</option><option>Other</option></select>
+  <label>Type</label><select id="tType"><option>Blog</option><option>Social</option><option>LinkedIn</option><option>SEO</option><option>Invoice</option><option>Report</option><option>Other</option></select>
   <label>Due date</label><input id="tDue" type="date">
   <button class="save" onclick="saveTask()">Save</button>
   <button class="save" style="background:transparent;color:var(--red);border:1px solid var(--line);margin-top:8px;display:none" id="tDel" onclick="delTask()">Delete</button>
@@ -147,8 +147,8 @@
 <script>
 var KEY='services_planner_v1';
 var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-var TYPES=['Blog','Social','LinkedIn','SEO','Report','Other'];
-function typeColor(t){return {Blog:'#37d39b',Social:'#ff1c8d',LinkedIn:'#4a9fff',SEO:'#ffb020',Report:'#b06cff',Other:'#9a9aa6'}[t]||'#9a9aa6';}
+var TYPES=['Blog','Social','LinkedIn','SEO','Invoice','Report','Other'];
+function typeColor(t){return {Blog:'#37d39b',Social:'#ff1c8d',LinkedIn:'#4a9fff',SEO:'#ffb020',Invoice:'#2dd4bf',Report:'#b06cff',Other:'#9a9aa6'}[t]||'#9a9aa6';}
 function todayMid(){var d=new Date();d.setHours(0,0,0,0);return d;}
 function iso(d){var x=new Date(d);x.setHours(0,0,0,0);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');}
 function parse(s){var p=s.split('-');var x=new Date(+p[0],+p[1]-1,+p[2]);x.setHours(0,0,0,0);return x;}
