@@ -119,6 +119,17 @@
   .agh{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:16px 0 2px;padding-top:8px;border-top:1px solid var(--line)}
   .agh.r{color:var(--red)}.agh.a{color:var(--pink)}
   #agBody .agh:first-child{margin-top:2px;border-top:none;padding-top:0}
+  .snooze{display:flex;gap:6px;margin-top:6px}
+  .snooze button{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer}
+  .snooze button:active{background:var(--line)}
+  .rollbtn{background:var(--red);color:#fff;border:none;border-radius:7px;padding:3px 9px;font-size:10px;font-weight:700;cursor:pointer;margin-left:6px;text-transform:none;letter-spacing:0}
+  .rnote a{color:var(--pink);text-decoration:underline;word-break:break-all}
+  .srow{display:flex;align-items:flex-start;gap:10px;padding:10px 4px;border-top:1px solid var(--line);cursor:pointer}
+  .srow:hover{background:var(--panel2)}
+  .tlrow{display:flex;gap:10px;border-top:1px solid var(--line);padding:2px 0;min-height:34px}
+  .tlhour{flex:0 0 58px;font-size:11px;font-weight:700;color:var(--muted);padding-top:11px;text-align:right}
+  .tlitems{flex:1;min-width:0}
+  .tlempty{height:30px}
 </style>
 </head>
 <body>
@@ -147,6 +158,8 @@
 <button class="fab" onclick="openTask()">+</button>
 <div class="barbtn">
   <button class="ghost" onclick="openAgenda()">🗒 Agenda</button>
+  <button class="ghost" onclick="openTimeline()">📆 Day</button>
+  <button class="ghost" onclick="openSearch()">🔍</button>
   <button class="ghost" onclick="openRules()">⚙ Recurring</button>
   <button class="ghost" onclick="openSummary()">📊 Summary</button>
   <button class="ghost" onclick="openSettings()">⚙ Settings</button>
@@ -183,6 +196,13 @@
 
 <div class="ov" id="agOv"><div class="sheet"><button class="xclose" onclick="closeOv('agOv')">✕</button><h2 id="agTitle">🗒 Agenda</h2><div id="agBody"></div></div></div>
 
+<div class="ov" id="tlOv"><div class="sheet"><button class="xclose" onclick="closeOv('tlOv')">✕</button><h2 id="tlTitle">📆 Day plan</h2><div id="tlBody"></div></div></div>
+
+<div class="ov" id="srchOv"><div class="sheet"><button class="xclose" onclick="closeOv('srchOv')">✕</button><h2>🔍 Search</h2>
+  <input id="srchIn" placeholder="Search tasks by name, client, or note…" oninput="runSearch()" autocomplete="off">
+  <div id="srchBody" style="margin-top:10px"></div>
+</div></div>
+
 <div class="ov" id="setOv"><div class="sheet">
   <button class="xclose" onclick="closeOv('setOv')">✕</button>
   <h2>⚙ Settings</h2>
@@ -199,6 +219,10 @@
     <button class="ghost" style="position:static;flex:1" onclick="clearTodoist()">Disconnect</button>
   </div>
   <div class="hint" style="text-align:left;margin:6px 0 0" id="todoStatus"></div>
+
+  <label style="margin-top:18px">📆 Calendar export</label>
+  <div class="hint" style="text-align:left;margin:0 0 6px">Download an .ics file of the next ~7 months — import it into Google Calendar, Apple Calendar, or Outlook to see your planner items there.</div>
+  <button class="ghost" style="position:static;width:100%" onclick="exportICS()">⤓ Export to calendar (.ics)</button>
 
   <label style="margin-top:18px">⤓ Import deliverables</label>
   <div class="hint" style="text-align:left;margin:0 0 6px">Paste a setup code or link to load deliverables.</div>
@@ -233,6 +257,7 @@ function parse(s){var p=(''+s).split('-');var x=new Date(+p[0],+p[1]-1,+p[2]);x.
 function addDays(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x;}
 function lastDom(y,m){return new Date(y,m+1,0).getDate();}
 function esc(s){return (''+s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function linkifyNote(raw){return (''+raw).split(/(https?:\/\/[^\s]+)/g).map(function(p,idx){return idx%2?'<a href="'+p.replace(/"/g,'%22')+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+esc(p)+'</a>':esc(p);}).join('');}
 function money(n){return '$'+(n||0).toLocaleString();}
 
 var DEFAULT={rules:[
@@ -338,7 +363,7 @@ function renderSummary(){
   var start=todayMid();
   var all=fil(itemsIn(addDays(start,-40),addDays(start,60))),open=all.filter(function(i){return !i.done;});
   document.getElementById('summary').innerHTML=
-    '<div class="chip r"><b>'+open.filter(function(i){return parse(i.date)<start;}).length+'</b>overdue</div>'+
+    '<div class="chip r" style="cursor:pointer" onclick="openAgenda()"><b>'+open.filter(function(i){return parse(i.date)<start;}).length+'</b>overdue</div>'+
     '<div class="chip a"><b>'+open.filter(function(i){return i.date===iso(start);}).length+'</b>today</div>'+
     '<div class="chip"><b>'+open.filter(function(i){var d=parse(i.date);return d>start&&d<=addDays(start,7);}).length+'</b>next 7d</div>'+
     '<div class="chip g"><b>'+all.filter(function(i){return i.done;}).length+'</b>done</div>';
@@ -389,10 +414,11 @@ function rowHTML(i,mv){
     subs='<div class="subs">'+i.subs.map(function(s,si){return '<div class="sub" onclick="toggleSub(\''+i.key+'\','+si+')"><span class="subck'+(s.d?' on':'')+'">'+(s.d?'✓':'')+'</span><span class="'+(s.d?'sdone':'')+'">'+esc(s.t)+'</span></div>';}).join('')+
       '<div class="subcount">'+dn+'/'+i.subs.length+'</div></div>';}
   var dur=effMins(i),durb=dur?'<span class="rdur">⏱'+fmtDur(dur)+'</span>':'';
+  var snoozeb=(!i.done)?'<div class="snooze"><button onclick="snooze(\''+i.key+'\',\''+i.date+'\',1)">⏭ Tomorrow</button><button onclick="snooze(\''+i.key+'\',\''+i.date+'\',7)">+1 wk</button></div>':'';
   return '<div class="row"><div class="check '+(i.done?'on':'')+'" onclick="toggle(\''+i.key+'\')">'+(i.done?'✓':'')+'</div>'+
     '<div class="rbody"><div class="rtitle '+(i.done?'done':'')+'">'+(i.pri?'<span class="primark">⭐</span> ':'')+tprefix+esc(i.title)+'</div>'+
     amt+
-    (i.note?'<div class="rnote">'+esc(i.note)+'</div>':'')+subs+mvb+'</div>'+
+    (i.note?'<div class="rnote">'+linkifyNote(i.note)+'</div>':'')+subs+mvb+snoozeb+'</div>'+
     durb+'<span class="tg" style="background:'+typeColor(i.type)+'">'+esc(i.type)+'</span>'+star+editb+'</div>';
 }
 function togglePri(key){
@@ -409,13 +435,24 @@ function refreshOpen(){
   render();
   if(document.getElementById('sumOv').classList.contains('show'))openSummary();
   if(document.getElementById('agOv').classList.contains('show'))openAgenda();
+  if(document.getElementById('tlOv').classList.contains('show'))openTimeline();
 }
-function moveItem(key,nd){
+var uidc=0;function uid(){return 'o'+Date.now()+'_'+(uidc++);}
+function moveKey(key,nd){
   if(!nd)return;if(!S.skip)S.skip={};
   if(key.indexOf('one|')===0){var id=key.slice(4);var o=S.oneoffs.filter(function(x){return x.id==id;})[0];if(o)o.due=nd;}
   else{var rid=key.split('|')[0],r=S.rules.filter(function(x){return x.id===rid;})[0];
-    if(r){S.skip[key]=true;S.oneoffs.push({id:'o'+Date.now(),client:r.client,type:r.type,title:r.title,due:nd,amount:r.amount||0,note:r.note||'',done:!!(S.done&&S.done[key])});}}
-  save();selDate=nd;render();openDay();
+    if(r){S.skip[key]=true;S.oneoffs.push({id:uid(),client:r.client,type:r.type,title:r.title,due:nd,amount:r.amount||0,note:r.note||'',time:r.time||'',pri:!!r.pri,mins:(r.mins!=null?r.mins:''),subs:instSubs(r,key).map(function(s){return{t:s.t,d:s.d};}),done:!!(S.done&&S.done[key])});}}
+}
+function moveItem(key,nd){if(!nd)return;moveKey(key,nd);save();selDate=nd;render();openDay();}
+function snooze(key,fromDate,days){var nd=iso(addDays(parse(fromDate),days));moveKey(key,nd);save();refreshOpen();}
+function rollOverdue(){
+  var t=todayMid(),today=iso(t);
+  var over=itemsIn(addDays(t,-150),addDays(t,-1)).filter(function(i){return !i.done&&parse(i.date)<t;});
+  if(!over.length){alert('Nothing overdue. 🎉');return;}
+  if(!confirm('Move '+over.length+' overdue item'+(over.length>1?'s':'')+' to today?'))return;
+  over.forEach(function(i){moveKey(i.key,today);});
+  save();refreshOpen();
 }
 
 function selectDay(di){selDate=di;renderMonth();openDay();}
@@ -566,7 +603,7 @@ function openAgenda(){
   items.filter(function(i){return parse(i.date)>=t;}).forEach(function(i){(groups[i.date]=groups[i.date]||[]).push(i);});
   var dates=Object.keys(groups).sort();
   var body='';
-  if(overdue.length)body+='<div class="agh r">⚠ Overdue · '+overdue.length+'</div>'+overdue.map(function(i){return rowHTML(i,true);}).join('');
+  if(overdue.length)body+='<div class="agh r">⚠ Overdue · '+overdue.length+' <button class="rollbtn" onclick="rollOverdue()">→ all to today</button></div>'+overdue.map(function(i){return rowHTML(i,true);}).join('');
   if(!dates.length&&!overdue.length)body='<div style="color:var(--muted);padding:14px 0">Nothing coming up. Enjoy the clear runway. ✨</div>';
   dates.forEach(function(d){
     var dd=parse(d),lbl=d===iso(t)?'Today':(d===iso(addDays(t,1))?'Tomorrow':dd.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}));
@@ -576,6 +613,68 @@ function openAgenda(){
   document.getElementById('agBody').innerHTML=body;
   document.getElementById('agOv').classList.add('show');
   loadTodoist();
+}
+
+// ---- Day plan / timeline ----
+function fmtHour(h){h=((h%24)+24)%24;return h===0?'12 AM':h<12?h+' AM':h===12?'12 PM':(h-12)+' PM';}
+function openTimeline(){
+  var t=todayMid();
+  var all=fil(itemsIn(t,t)).sort(cmpItem);
+  var openMins=sumDur(all.filter(function(i){return !i.done;}));
+  document.getElementById('tlTitle').innerHTML='📆 '+t.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+(openMins?' <span class="hdr-dur">· ~'+fmtDur(openMins)+' of work</span>':'');
+  var timed=all.filter(function(i){return i.time;}),untimed=all.filter(function(i){return !i.time;});
+  var body='';
+  if(untimed.length)body+='<div class="agh">⏰ Anytime today</div>'+untimed.map(function(i){return rowHTML(i,false);}).join('');
+  if(timed.length){
+    var hours=timed.map(function(i){return +i.time.split(':')[0];});
+    var startH=Math.min.apply(null,[8].concat(hours)),endH=Math.max.apply(null,[18].concat(hours.map(function(h){return h+1;})));
+    body+='<div class="agh">🕒 Timeline</div>';
+    for(var h=startH;h<=endH;h++){
+      var hi=timed.filter(function(i){return (+i.time.split(':')[0])===h;});
+      body+='<div class="tlrow"><div class="tlhour">'+fmtHour(h)+'</div><div class="tlitems">'+(hi.length?hi.map(function(i){return rowHTML(i,false);}).join(''):'<div class="tlempty"></div>')+'</div></div>';
+    }
+  }
+  if(!all.length)body='<div style="color:var(--muted);padding:14px 0">Nothing on for today — a rare clear day. ✨</div>';
+  document.getElementById('tlBody').innerHTML=body;
+  document.getElementById('tlOv').classList.add('show');
+}
+
+// ---- Search ----
+function openSearch(){document.getElementById('srchIn').value='';runSearch();document.getElementById('srchOv').classList.add('show');setTimeout(function(){document.getElementById('srchIn').focus();},60);}
+function jumpTo(d){closeOv('srchOv');var dt=parse(d);viewY=dt.getFullYear();viewM=dt.getMonth();selectDay(d);}
+function runSearch(){
+  var q=document.getElementById('srchIn').value.trim().toLowerCase(),el=document.getElementById('srchBody');
+  if(!q){el.innerHTML='<div style="color:var(--muted);padding:8px 0">Start typing to search all your tasks.</div>';return;}
+  var items=itemsIn(addDays(todayMid(),-365),addDays(todayMid(),400));
+  var hits=items.filter(function(i){return (i.title+' '+i.client+' '+(i.note||'')+' '+i.type).toLowerCase().indexOf(q)>=0;}).sort(function(a,b){return a.date<b.date?-1:1;});
+  if(!hits.length){el.innerHTML='<div style="color:var(--muted);padding:8px 0">No matches.</div>';return;}
+  el.innerHTML='<div class="hint" style="text-align:left;margin:0 0 4px">'+hits.length+' match'+(hits.length>1?'es':'')+(hits.length>60?' (showing 60)':'')+'</div>'+hits.slice(0,60).map(function(i){
+    var dd=parse(i.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    return '<div class="srow" onclick="jumpTo(\''+i.date+'\')"><div style="flex:1;min-width:0"><div class="rtitle '+(i.done?'done':'')+'">'+esc(i.title)+'</div><div class="rnote">'+dd+' · '+esc(i.client)+'</div></div><span class="tg" style="background:'+typeColor(i.type)+'">'+esc(i.type)+'</span></div>';
+  }).join('');
+}
+
+// ---- Calendar export (.ics) ----
+function icsEsc(s){return (''+s).replace(/[\\;,]/g,function(c){return '\\'+c;}).replace(/\r?\n/g,'\\n');}
+function exportICS(){
+  var t=todayMid(),items=itemsIn(addDays(t,-31),addDays(t,210));
+  var L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Kandys Planner//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  items.forEach(function(i){
+    var dt=i.date.replace(/-/g,'');
+    L.push('BEGIN:VEVENT','UID:'+i.key.replace(/[^a-zA-Z0-9]/g,'')+'@kandysplanner');
+    if(i.time){var p=i.time.split(':'),sh=+p[0],sm=+p[1];
+      L.push('DTSTART:'+dt+'T'+String(sh).padStart(2,'0')+String(sm).padStart(2,'0')+'00');
+      var endTot=sh*60+sm+(effMins(i)||30),eh=Math.floor(endTot/60)%24,em=endTot%60;
+      L.push('DTEND:'+dt+'T'+String(eh).padStart(2,'0')+String(em).padStart(2,'0')+'00');
+    }else{L.push('DTSTART;VALUE=DATE:'+dt);}
+    L.push('SUMMARY:'+icsEsc((i.pri?'⭐ ':'')+i.title+(i.client?' ('+i.client+')':'')));
+    if(i.note)L.push('DESCRIPTION:'+icsEsc(i.note));
+    L.push('END:VEVENT');
+  });
+  L.push('END:VCALENDAR');
+  var blob=new Blob([L.join('\r\n')],{type:'text/calendar;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='kandys-planner.ics';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},2000);
 }
 
 // ---- Settings ----
