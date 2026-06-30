@@ -216,8 +216,9 @@ var COL={Blog:'#a855f7',Social:'#ff1c8d',LinkedIn:'#ff1c8d',SEO:'#ffb020',Invoic
   Appointment:'#5eb0ff',Bill:'#ff6b6b',Birthday:'#f472b6',Health:'#34d399',Errand:'#a3a3ff',Personal:'#c084fc',Other:'#9a9aa6'};
 // Default time-needed (minutes) per type — used when a task has no explicit estimate
 var DEFAULT_MINS={Social:15,LinkedIn:15,Blog:120,Report:90,SEO:60,Portal:30,Invoice:10,'One-time':60,Appointment:60,Bill:5,Health:60,Errand:30,Personal:30,Birthday:0,Other:30};
-// The "work" types shown in the calendar legend (life types like Birthday/Personal are kept off it)
+// The "work" types shown on the month grid + legend (life types like Birthday/Personal stay in Agenda/day view only)
 var MAIN_TYPES=['Blog','Social','LinkedIn','SEO','Invoice','Report','Portal','One-time'];
+function isMain(t){return MAIN_TYPES.indexOf(t)>=0;}
 // Types whose $ amount is money going OUT (expense), not billable income
 var EXPENSE_TYPES=['Bill'];
 function isExpense(t){return EXPENSE_TYPES.indexOf(t)>=0;}
@@ -356,7 +357,7 @@ function renderMonth(){
   var ie=incExp(fil(itemsIn(first,mEnd)));
   document.getElementById('rev').innerHTML=(ie.inc||ie.exp)?('💰 <b>'+money(ie.inc)+'</b> billable'+(ie.exp?(' &nbsp;·&nbsp; 💸 <b class="outv">'+money(ie.exp)+'</b> out'):'')+' this month'):'';
   var gridStart=addDays(first,-first.getDay());
-  var items=fil(itemsIn(gridStart,addDays(gridStart,41))),by={};
+  var items=fil(itemsIn(gridStart,addDays(gridStart,41))).filter(function(i){return isMain(i.type);}),by={};
   items.forEach(function(i){(by[i.date]=by[i.date]||[]).push(i);});
   var tIso=iso(todayMid()),html='';
   for(var k=0;k<42;k++){
