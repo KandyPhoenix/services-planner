@@ -216,6 +216,8 @@ var COL={Blog:'#a855f7',Social:'#ff1c8d',LinkedIn:'#ff1c8d',SEO:'#ffb020',Invoic
   Appointment:'#5eb0ff',Bill:'#ff6b6b',Birthday:'#f472b6',Health:'#34d399',Errand:'#a3a3ff',Personal:'#c084fc',Other:'#9a9aa6'};
 // Default time-needed (minutes) per type — used when a task has no explicit estimate
 var DEFAULT_MINS={Social:15,LinkedIn:15,Blog:120,Report:90,SEO:60,Portal:30,Invoice:10,'One-time':60,Appointment:60,Bill:5,Health:60,Errand:30,Personal:30,Birthday:0,Other:30};
+// The "work" types shown in the calendar legend (life types like Birthday/Personal are kept off it)
+var MAIN_TYPES=['Blog','Social','LinkedIn','SEO','Invoice','Report','Portal','One-time'];
 // Types whose $ amount is money going OUT (expense), not billable income
 var EXPENSE_TYPES=['Bill'];
 function isExpense(t){return EXPENSE_TYPES.indexOf(t)>=0;}
@@ -368,9 +370,10 @@ function renderMonth(){
   document.getElementById('cal').innerHTML=html;
 }
 function renderLegend(){
-  var used=[];itemsIn(addDays(todayMid(),-90),addDays(todayMid(),200)).forEach(function(i){if(used.indexOf(i.type)<0)used.push(i.type);});
-  if(!used.length){document.getElementById('legend').innerHTML='';return;}
-  document.getElementById('legend').innerHTML=used.map(function(t){return '<span class="lg"><span class="ld" style="background:'+typeColor(t)+'"></span>'+esc(t)+'</span>';}).join('');
+  var used={};itemsIn(addDays(todayMid(),-90),addDays(todayMid(),200)).forEach(function(i){used[i.type]=1;});
+  var show=MAIN_TYPES.filter(function(t){return used[t];});
+  if(!show.length){document.getElementById('legend').innerHTML='';return;}
+  document.getElementById('legend').innerHTML=show.map(function(t){return '<span class="lg"><span class="ld" style="background:'+typeColor(t)+'"></span>'+esc(t)+'</span>';}).join('');
 }
 
 function rowHTML(i,mv){
