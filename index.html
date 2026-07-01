@@ -190,7 +190,7 @@
   <div class="summary" id="summary"></div>
 </header>
 
-<div class="wrap">
+<div class="wrap" id="mainwrap">
   <div class="hero" id="hero"></div>
   <div class="filters" id="filters"></div>
   <div class="filters sub" id="subfilters"></div>
@@ -538,7 +538,7 @@ function renderMonth(){
   var ie=incExp(fil(itemsIn(first,mEnd)));
   document.getElementById('rev').innerHTML=(ie.inc||ie.exp)?('💰 <b>'+money(ie.inc)+'</b> billable'+(ie.exp?(' &nbsp;·&nbsp; 💸 <b class="outv">'+money(ie.exp)+'</b> out'):'')+' this month'):'';
   var gridStart=addDays(first,-first.getDay());
-  var items=fil(itemsIn(gridStart,addDays(gridStart,41))).filter(function(i){return isMain(i.type);}),by={};
+  var items=fil(itemsIn(gridStart,addDays(gridStart,41))).filter(function(i){return sf!=='All'||isMain(i.type);}),by={};
   items.forEach(function(i){(by[i.date]=by[i.date]||[]).push(i);});
   var tIso=iso(todayMid()),html='';
   for(var k=0;k<42;k++){
@@ -563,7 +563,7 @@ function renderWeek(){
   document.getElementById('mtitle').textContent=ws.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+we.toLocaleDateString('en-US',{month:'short',day:'numeric'});
   var ie=incExp(fil(itemsIn(ws,we)));
   document.getElementById('rev').innerHTML=(ie.inc||ie.exp)?('💰 <b>'+money(ie.inc)+'</b> billable'+(ie.exp?(' &nbsp;·&nbsp; 💸 <b class="outv">'+money(ie.exp)+'</b> out'):'')+' this week'):'';
-  var items=fil(itemsIn(ws,we)).filter(function(i){return isMain(i.type);}),by={};
+  var items=fil(itemsIn(ws,we)).filter(function(i){return sf!=='All'||isMain(i.type);}),by={};
   items.forEach(function(i){(by[i.date]=by[i.date]||[]).push(i);});
   var tIso=iso(todayMid()),html='';
   for(var k=0;k<7;k++){
