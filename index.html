@@ -42,10 +42,17 @@
   .ring-t{fill:var(--text);font-size:17px;font-weight:800}
   .ring-l{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
   .winmsg{text-align:center;font-size:14px;font-weight:800;color:var(--pink);margin-top:18px;padding:13px;background:var(--panel2);border:1px solid var(--line);border-radius:12px}
+  .litxt{color:var(--pink);text-decoration:none;font-weight:600}
+  .litxt.sdone{color:var(--muted);text-decoration:line-through}
+  #listsTabs{overflow-x:auto}
   .filters{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px}
   .fbtn{flex:0 0 auto;border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:18px;
     padding:5px 13px;font-size:12.5px;cursor:pointer;font-weight:600}
   .fbtn.on{background:var(--pink);color:#fff;border-color:var(--pink)}
+  .fbtn.sp{font-weight:800}
+  .filters.sub{padding-top:0;margin-top:-4px}
+  .filters.sub .fbtn{font-size:11.5px;padding:4px 11px;background:transparent}
+  .filters.sub .fbtn.on{background:var(--pink);color:#fff}
   .monthbar{display:flex;align-items:center;justify-content:space-between;margin:2px 2px 6px}
   .mtitle{font-size:18px;font-weight:700}
   .nav{display:flex;align-items:center;gap:7px}
@@ -186,6 +193,7 @@
 <div class="wrap">
   <div class="hero" id="hero"></div>
   <div class="filters" id="filters"></div>
+  <div class="filters sub" id="subfilters"></div>
   <div class="qadd">
     <input id="qaddIn" placeholder="Quick add for today… (press Enter)" onkeydown="if(event.key==='Enter')quickAdd()">
     <button onclick="quickAdd()">Add</button>
@@ -215,7 +223,7 @@
   <button class="xclose" onclick="closeOv('taskOv')">✕</button>
   <h2 id="taskTitle">Add task</h2>
   <label>What needs doing</label><input id="tTitle" placeholder="e.g. Publish blog post">
-  <label>Client / Area</label><input id="tClient" placeholder="Lori, Health, Home…" list="clients"><datalist id="clients"></datalist>
+  <div style="display:flex;gap:10px"><div style="flex:0 0 40%"><label>Space</label><select id="tSpace"></select></div><div style="flex:1"><label>Project / Client</label><input id="tClient" placeholder="Lori, Sunbright, Health…" list="clients"><datalist id="clients"></datalist></div></div>
   <label>Type</label><select id="tType"></select>
   <div style="display:flex;gap:10px"><div style="flex:1"><label>Due date</label><input id="tDue" type="date"></div><div style="flex:0 0 38%"><label>Time (optional)</label><input id="tTime" type="time"></div></div>
   <label style="display:flex;align-items:center;gap:9px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);margin-top:13px;cursor:pointer"><label class="sw" style="margin:0"><input type="checkbox" id="tPri"><span class="sl"></span></label> ⭐ Mark as priority</label>
@@ -293,6 +301,7 @@
     <button onclick="closeOv('menuOv');openInsights()">📈<span>Insights</span></button>
     <button onclick="closeOv('menuOv');openWins()">🙌<span>Wins</span></button>
     <button onclick="closeOv('menuOv');openHabits()">🔥<span>Habits</span></button>
+    <button onclick="closeOv('menuOv');openLists()">🗂<span>Lists</span></button>
     <button onclick="closeOv('menuOv');openRules()">⚙<span>Recurring</span></button>
     <button onclick="closeOv('menuOv');openSummary()">📊<span>Summary</span></button>
     <button onclick="closeOv('menuOv');openSettings()">⚙<span>Settings</span></button>
@@ -302,6 +311,11 @@
 <div class="ov" id="moneyOv"><div class="sheet"><button class="xclose" onclick="closeOv('moneyOv')">✕</button><h2 id="moneyTitle">💰 Money</h2><div id="moneyBody"></div></div></div>
 
 <div class="ov" id="winsOv"><div class="sheet"><button class="xclose" onclick="closeOv('winsOv')">✕</button><h2 id="winsTitle">🙌 Your Wins</h2><div id="winsBody"></div></div></div>
+
+<div class="ov" id="listsOv"><div class="sheet"><button class="xclose" onclick="closeOv('listsOv')">✕</button><h2>🗂 Lists</h2>
+  <div class="filters" id="listsTabs" style="margin-bottom:8px"></div>
+  <div id="listsBody"></div>
+</div></div>
 
 <div class="ov" id="goalsOv"><div class="sheet"><button class="xclose" onclick="closeOv('goalsOv')">✕</button><h2 id="goalsTitle">🎯 Goals</h2><div id="goalsBody"></div>
   <div style="display:flex;gap:6px;margin-top:12px"><input id="goalIn" placeholder="New goal…" onkeydown="if(event.key==='Enter')addGoal()"><input id="goalTgt" type="number" min="0" placeholder="target #" style="flex:0 0 90px"></div>
@@ -328,6 +342,15 @@ var DEFAULT_MINS={Social:15,LinkedIn:15,Blog:120,Report:90,SEO:60,Portal:30,Invo
 // The "work" types shown on the month grid + legend (life types like Birthday/Personal stay in Agenda/day view only)
 var MAIN_TYPES=['Blog','Social','LinkedIn','SEO','Invoice','Report','Portal','One-time'];
 function isMain(t){return MAIN_TYPES.indexOf(t)>=0;}
+// Top-level Spaces: PM = Phoenix Method agency (Lori, Sunbright…); PHW = medical-billing employer; Life = personal
+var SPACES=['PM','PHW','Life'];
+var SPACE_META={PM:{e:'🚀'},PHW:{e:'🏥'},Life:{e:'🌱'}};
+function spaceLabel(s){return s==='All'?'All':((SPACE_META[s]?SPACE_META[s].e+' ':'')+s);}
+function inferSpace(it){
+  if((it.client||'')==='Personal'||['Birthday','Personal','Appointment','Bill','Health','Errand'].indexOf(it.type)>=0)return 'Life';
+  if(/phw|billing/i.test(it.client||''))return 'PHW';
+  return 'PM';
+}
 // Types whose $ amount is money going OUT (expense), not billable income
 var EXPENSE_TYPES=['Bill'];
 function isExpense(t){return EXPENSE_TYPES.indexOf(t)>=0;}
@@ -389,6 +412,19 @@ function ensureShape(o){
   // Retired types → new names (covers any already-synced data)
   o.rules.forEach(function(r){if(r.type==='Wedding')r.type='Personal';if(r.type==='Setup')r.type='One-time';});
   o.oneoffs.forEach(function(x){if(x.type==='Wedding')x.type='Personal';if(x.type==='Setup')x.type='One-time';});
+  // Spaces (two-level): tag each item with a top Space; existing client stays as the project
+  o.rules.forEach(function(r){if(!r.space)r.space=inferSpace(r);});
+  o.oneoffs.forEach(function(x){if(!x.space)x.space=inferSpace(x);});
+  // Lists hub (full-life collections) — seed by id so repeated ensureShape calls never duplicate
+  o.lists=o.lists||[];
+  if(!o.seededLists){
+    [{id:'ideas',emoji:'💡',name:'Ideas & Thoughts',type:'notes',items:[]},
+     {id:'buy',emoji:'🛒',name:'Need to Buy',type:'buy',items:[]},
+     {id:'todo',emoji:'✅',name:'To-Do',type:'checklist',items:[]},
+     {id:'links',emoji:'🔗',name:'Links',type:'links',items:[]}
+    ].forEach(function(d){if(!o.lists.some(function(l){return l.id===d.id;}))o.lists.push(d);});
+    o.seededLists=true;
+  }
   return o;
 }
 var S=ensureShape(load());
@@ -410,7 +446,7 @@ function mergeData(d){
   if(/reset|seed=/.test(src))history.replaceState(null,'',location.pathname);
 }catch(e){}})();
 
-var viewY,viewM,selDate,cf='All',vmode='month',dragKey=null;
+var viewY,viewM,selDate,cf='All',sf='All',vmode='month',dragKey=null;
 (function(){var t=todayMid();viewY=t.getFullYear();viewM=t.getMonth();selDate=iso(t);})();
 
 function instancesIn(start,end){
@@ -446,14 +482,15 @@ function instancesIn(start,end){
   return out.filter(function(i){return !(S.skip&&S.skip[i.key]);});
 }
 function instSubs(r,key){var tmpl=r.subs||[];var st=(S.subs&&S.subs[key])||[];return tmpl.map(function(s,i){return{t:(s&&s.t)||s||'',d:!!st[i]};}).filter(function(s){return s.t;});}
-function inst(r,d){var key=r.id+'|'+iso(d);return{key:key,client:r.client,type:r.type,title:r.title,date:iso(d),done:!!S.done[key],recurring:true,amount:r.amount||0,note:r.note||'',time:r.time||'',pri:!!r.pri,mins:(r.mins!=null?r.mins:''),subs:instSubs(r,key)};}
+function inst(r,d){var key=r.id+'|'+iso(d);return{key:key,space:r.space||'PM',client:r.client,type:r.type,title:r.title,date:iso(d),done:!!S.done[key],recurring:true,amount:r.amount||0,note:r.note||'',time:r.time||'',pri:!!r.pri,mins:(r.mins!=null?r.mins:''),subs:instSubs(r,key)};}
 function itemsIn(start,end){
   var items=instancesIn(start,end);
-  S.oneoffs.forEach(function(o){var d=parse(o.due);if(d>=start&&d<=end)items.push({key:'one|'+o.id,id:o.id,client:o.client,type:o.type,title:o.title,date:o.due,done:!!o.done,recurring:false,amount:o.amount||0,note:o.note||'',time:o.time||'',pri:!!o.pri,mins:(o.mins!=null?o.mins:''),subs:(o.subs||[]).filter(function(s){return s&&s.t;})});});
+  S.oneoffs.forEach(function(o){var d=parse(o.due);if(d>=start&&d<=end)items.push({key:'one|'+o.id,id:o.id,space:o.space||'PM',client:o.client,type:o.type,title:o.title,date:o.due,done:!!o.done,recurring:false,amount:o.amount||0,note:o.note||'',time:o.time||'',pri:!!o.pri,mins:(o.mins!=null?o.mins:''),subs:(o.subs||[]).filter(function(s){return s&&s.t;})});});
   return items;
 }
-function fil(items){return cf==='All'?items:items.filter(function(i){return i.client===cf;});}
-function clientsList(){var c=[];itemsIn(addDays(todayMid(),-90),addDays(todayMid(),200)).forEach(function(i){if(c.indexOf(i.client)<0)c.push(i.client);});return c;}
+function fil(items){var out=items;if(sf!=='All')out=out.filter(function(i){return (i.space||'PM')===sf;});if(cf!=='All')out=out.filter(function(i){return i.client===cf;});return out;}
+function clientsList(){var c=[];itemsIn(addDays(todayMid(),-120),addDays(todayMid(),240)).forEach(function(i){if(c.indexOf(i.client)<0)c.push(i.client);});return c;}
+function projectsList(){var c=[];itemsIn(addDays(todayMid(),-120),addDays(todayMid(),240)).forEach(function(i){if((sf==='All'||(i.space||'PM')===sf)&&c.indexOf(i.client)<0)c.push(i.client);});return c;}
 
 function render(){applyTheme();renderHero();renderSummary();renderFilters();renderView();renderLegend();if(document.getElementById('dayOv').classList.contains('show'))openDay();}
 var AFFIRM=["Small steps still move mountains.","You've done hard things before — today's no match.","Progress over perfection, always.","Your future self is already cheering.","One task at a time is how empires get built.","You are the calm and the lightning. ♒","Done beats perfect every time.","Every check-mark is proof you showed up.","Big dreams, tiny consistent moves.","You bring the magic — the list just holds the plan.","Momentum loves a first step.","You're closer than you were yesterday.","Trust the work; results are catching up.","Just handle the next thing.","Your business grows each time you follow through.","Rest is productive too — pace yourself.","You handle more than people realize.","Make it happen, then make it look easy.","Confidence is built one kept promise at a time.","Fresh page today — write something good.","Your effort compounds. Keep going.","Steady wins, and you are steady.","Be proud of how far you've come.","Great things get built on ordinary days.","You're a work in progress AND a masterpiece.","Show up for you like you do for everyone else.","The list is long because your vision is big.","Breathe. You've got this one."];
@@ -485,10 +522,13 @@ function renderSummary(){
     '<div class="chip g"><b>'+all.filter(function(i){return i.done;}).length+'</b>done</div>';
 }
 function renderFilters(){
-  var cs=['All'].concat(clientsList());
-  if(cs.indexOf(cf)<0)cf='All';
-  document.getElementById('filters').innerHTML=cs.map(function(c){return '<button class="fbtn '+(cf===c?'on':'')+'" onclick="setFilter(\''+esc(c)+'\')">'+esc(c)+'</button>';}).join('');
+  document.getElementById('filters').innerHTML=['All'].concat(SPACES).map(function(s){return '<button class="fbtn sp'+(sf===s?' on':'')+'" onclick="setSpace(\''+s+'\')">'+spaceLabel(s)+'</button>';}).join('');
+  var projs=projectsList();
+  if(projs.indexOf(cf)<0)cf='All';
+  var sub=document.getElementById('subfilters');
+  sub.innerHTML=projs.length>1?['All'].concat(projs).map(function(c){return '<button class="fbtn '+(cf===c?'on':'')+'" onclick="setFilter(\''+esc(c)+'\')">'+esc(c)+'</button>';}).join(''):'';
 }
+function setSpace(s){sf=s;cf='All';render();}
 function setFilter(c){cf=c;render();}
 
 function renderMonth(){
@@ -674,7 +714,9 @@ function openTask(id){
   document.getElementById('clients').innerHTML=clientsList().map(function(c){return '<option value="'+esc(c)+'">';}).join('');
   var o=id?S.oneoffs.filter(function(x){return x.id==id;})[0]:null;
   document.getElementById('tTitle').value=o?o.title:'';
-  document.getElementById('tClient').value=o?o.client:(cf!=='All'?cf:'Lori');
+  var sp=o?(o.space||'PM'):(sf!=='All'?sf:'PM');
+  document.getElementById('tSpace').innerHTML=SPACES.map(function(s){return '<option '+(s===sp?'selected':'')+'>'+s+'</option>';}).join('');
+  document.getElementById('tClient').value=o?o.client:(cf!=='All'?cf:(sp==='PM'?'Lori':sp==='Life'?'Personal':'PHW'));
   fillTypes(document.getElementById('tType'),o?o.type:'Other');
   document.getElementById('tDue').value=o?o.due:selDate;
   document.getElementById('tTime').value=o&&o.time?o.time:'';
@@ -692,7 +734,7 @@ function saveTask(){
   var t=document.getElementById('tTitle').value.trim();if(!t){alert('Add a title');return;}
   var subs=editSubs.filter(function(s){return s.t&&s.t.trim();}).map(function(s){return{t:s.t.trim(),d:!!s.d};});
   var mv=document.getElementById('tMins').value;
-  var data={title:t,client:document.getElementById('tClient').value.trim()||'Lori',type:document.getElementById('tType').value,
+  var data={title:t,space:document.getElementById('tSpace').value,client:document.getElementById('tClient').value.trim()||'Lori',type:document.getElementById('tType').value,
     due:document.getElementById('tDue').value,time:document.getElementById('tTime').value||'',pri:document.getElementById('tPri').checked,
     mins:(mv===''?'':+mv),amount:+document.getElementById('tAmt').value||0,note:document.getElementById('tNote').value.trim(),subs:subs};
   if(editId)Object.assign(S.oneoffs.filter(function(x){return x.id==editId;})[0],data);
@@ -715,8 +757,9 @@ function renderRules(){
     var freq='<div><label>Repeat</label><select onchange="setRule('+idx+',\'freq\',this.value)">'+['weekly','biweekly','monthly','quarterly','yearly'].map(function(f){return '<option '+(r.freq===f?'selected':'')+'>'+f+'</option>';}).join('')+'</select></div>';
     var type='<div><label>Type</label><select onchange="setRule('+idx+',\'type\',this.value)">'+TYPES.map(function(t){return '<option '+(r.type===t?'selected':'')+'>'+t+'</option>';}).join('')+'</select></div>';
     var subsTxt=(r.subs||[]).map(function(s){return (s&&s.t)||s||'';}).join('\n');
-    return '<div class="rule"><div class="rh">'+
-      '<input style="flex:1;font-weight:700;font-size:13px;padding:7px" value="'+esc(r.client)+'" placeholder="Client / Area" onchange="setRule('+idx+',\'client\',this.value)">'+
+    var spSel='<select style="flex:0 0 74px;font-weight:700;font-size:12px;padding:7px" onchange="setRule('+idx+',\'space\',this.value)">'+SPACES.map(function(s){return '<option '+((r.space||'PM')===s?'selected':'')+'>'+s+'</option>';}).join('')+'</select>';
+    return '<div class="rule"><div class="rh">'+spSel+
+      '<input style="flex:1;font-weight:700;font-size:13px;padding:7px" value="'+esc(r.client)+'" placeholder="Project / Client" onchange="setRule('+idx+',\'client\',this.value)">'+
       '<label class="sw"><input type="checkbox" '+(r.active?'checked':'')+' onchange="setRule('+idx+',\'active\',this.checked)"><span class="sl"></span></label>'+
       '<button class="mini" onclick="delRule('+idx+')">🗑️</button></div>'+
       '<input style="margin-top:6px;font-size:13px;padding:8px" value="'+esc(r.title)+'" placeholder="What needs doing" onchange="setRule('+idx+',\'title\',this.value)">'+
@@ -731,7 +774,7 @@ function renderRules(){
       '</div>';
   }).join('')+'<button class="ghost" style="position:static;width:100%;margin-top:8px" onclick="addRule()">+ Add recurring deliverable</button>';
 }
-function addRule(){S.rules.push({id:'r'+Date.now(),client:(cf!=='All'?cf:'Lori'),type:'Social',title:'New deliverable',freq:'weekly',dow:1,active:true});save();renderRules();render();}
+function addRule(){var sp=sf!=='All'?sf:'PM';S.rules.push({id:'r'+Date.now(),space:sp,client:(cf!=='All'?cf:(sp==='PM'?'Lori':sp)),type:'Social',title:'New deliverable',freq:'weekly',dow:1,active:true});save();renderRules();render();}
 function delRule(idx){if(confirm('Delete this recurring deliverable?')){S.rules.splice(idx,1);save();renderRules();render();}}
 function setRule(idx,k,v){
   if(k==='active'||k==='pri')S.rules[idx][k]=v;
@@ -750,7 +793,8 @@ function doImport(){try{mergeData(decodeSeed(document.getElementById('impText').
 // ---- Quick add ----
 function quickAdd(){
   var el=document.getElementById('qaddIn'),t=el.value.trim();if(!t)return;
-  S.oneoffs.push({id:'o'+Date.now(),title:t,client:(cf!=='All'?cf:'Personal'),type:'Personal',due:iso(todayMid()),done:false});
+  var sp=sf!=='All'?sf:'Life';
+  S.oneoffs.push({id:'o'+Date.now(),title:t,space:sp,client:(cf!=='All'?cf:(sp==='Life'?'Personal':sp)),type:sp==='Life'?'Personal':'Other',due:iso(todayMid()),done:false});
   el.value='';save();render();
 }
 
@@ -896,6 +940,49 @@ function openWins(){
   document.getElementById('winsBody').innerHTML=body;
   document.getElementById('winsOv').classList.add('show');
 }
+
+// ---- Lists hub (Ideas / Need to Buy / To-Do / Links) ----
+var activeList=null;
+function catColor(c){return {Gift:'#f472b6',Buy:'#2dd4bf',Read:'#a855f7','Follow-up':'#ffb020'}[c]||'#9a9aa6';}
+function openLists(id){activeList=id||(S.lists[0]&&S.lists[0].id);renderLists();document.getElementById('listsOv').classList.add('show');}
+function curList(){return S.lists.filter(function(x){return x.id===activeList;})[0];}
+function listItemHTML(l,it,i){
+  var checkable=(l.type==='checklist'||l.type==='buy');
+  var chk=checkable?'<div class="check '+(it.done?'on':'')+'" onclick="toggleListItem('+i+')">'+(it.done?'✓':'')+'</div>':'<div style="flex:0 0 6px;margin-top:6px;color:var(--pink)">•</div>';
+  var cat=(l.type==='links'&&it.cat)?'<span class="tg" style="background:'+catColor(it.cat)+'">'+esc(it.cat)+'</span>':'';
+  var txt;
+  if(it.url)txt='<a href="'+it.url.replace(/"/g,'%22')+'" target="_blank" rel="noopener" class="litxt '+(it.done?'sdone':'')+'">'+esc(it.text)+' ↗</a>';
+  else txt='<span class="'+(it.done?'sdone':'')+'">'+esc(it.text)+'</span>';
+  return '<div class="row">'+chk+'<div class="rbody"><div class="rtitle '+(it.done?'done':'')+'">'+txt+'</div></div>'+cat+'<button class="mini" onclick="delListItem('+i+')">🗑️</button></div>';
+}
+function renderLists(){
+  document.getElementById('listsTabs').innerHTML=S.lists.map(function(l){return '<button class="fbtn '+(activeList===l.id?'on':'')+'" onclick="activeList=\''+l.id+'\';renderLists()">'+l.emoji+' '+esc(l.name)+'</button>';}).join('')+'<button class="fbtn" onclick="addList()" title="New list">＋</button>';
+  var l=curList();if(!l){document.getElementById('listsBody').innerHTML='';return;}
+  var items=l.items||[];
+  var body=items.length?items.map(function(it,i){return listItemHTML(l,it,i);}).join(''):'<div style="color:var(--muted);padding:10px 0">Nothing here yet — add below.</div>';
+  var add;
+  if(l.type==='links')add='<input id="liText" placeholder="Label (e.g. Mom&#39;s gift idea)"><div style="display:flex;gap:6px;margin-top:6px"><input id="liUrl" placeholder="https://…" style="flex:1"><select id="liCat" style="flex:0 0 130px"><option>Gift</option><option>Buy</option><option>Read</option><option>Follow-up</option><option>Other</option></select></div>';
+  else if(l.type==='buy')add='<div style="display:flex;gap:6px"><input id="liText" placeholder="Item to buy" style="flex:1"><input id="liUrl" placeholder="link (optional)" style="flex:0 0 42%"></div>';
+  else add='<input id="liText" placeholder="'+(l.type==='notes'?'Jot an idea or thought…':'Add an item…')+'" onkeydown="if(event.key===&quot;Enter&quot;)addListItem()">';
+  add+='<button class="save" onclick="addListItem()">+ Add</button>';
+  var mng=(['ideas','buy','todo','links'].indexOf(l.id)<0)?'<button class="ghost" style="position:static;width:100%;margin-top:8px;color:var(--red)" onclick="delList()">Delete this list</button>':'';
+  document.getElementById('listsBody').innerHTML=body+'<div style="margin-top:14px">'+add+mng+'</div>';
+}
+function addListItem(){
+  var l=curList();if(!l)return;
+  var te=document.getElementById('liText'),text=te?te.value.trim():'';if(!text)return;
+  var ue=document.getElementById('liUrl'),url=ue?ue.value.trim():'';
+  var ce=document.getElementById('liCat'),cat=ce?ce.value:'';
+  var it={id:'i'+Date.now(),text:text};
+  if(url)it.url=(/^https?:\/\//.test(url)?url:'https://'+url);
+  if(l.type==='links'&&cat)it.cat=cat;
+  if(l.type==='checklist'||l.type==='buy')it.done=false;
+  l.items.unshift(it);save();renderLists();
+}
+function toggleListItem(i){var l=curList();if(l&&l.items[i]){l.items[i].done=!l.items[i].done;save();renderLists();}}
+function delListItem(i){var l=curList();if(l){l.items.splice(i,1);save();renderLists();}}
+function addList(){var n=prompt('New list name?');if(!n||!n.trim())return;var id='L'+Date.now();S.lists.push({id:id,emoji:'📄',name:n.trim(),type:'checklist',items:[]});activeList=id;save();renderLists();}
+function delList(){var l=curList();if(l&&confirm('Delete list "'+l.name+'"?')){S.lists=S.lists.filter(function(x){return x.id!==activeList;});activeList=S.lists[0]&&S.lists[0].id;save();renderLists();}}
 
 // ---- Insights ----
 function openInsights(){renderInsights(30);document.getElementById('insightsOv').classList.add('show');}
