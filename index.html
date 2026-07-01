@@ -87,7 +87,9 @@
   .mbadd input{padding:8px 11px;font-size:13px}
   .revleg{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;margin:0 2px 8px}
   .monthbar .mtitle{margin-right:auto}
-  .monthbar .legend{flex:0 1 auto;justify-content:flex-end;margin:0 10px 0 0}
+  .filterrow{display:flex;align-items:center;gap:6px 16px;flex-wrap:wrap;padding:2px 0 8px}
+  .filterrow .filters{flex:0 1 auto;padding:0}
+  .filterrow .legend{flex:0 1 auto}
   .mtitle{font-size:18px;font-weight:700}
   .nav{display:flex;align-items:center;gap:7px}
   .nav button{background:var(--panel);border:1px solid var(--line);color:var(--text);width:34px;height:34px;border-radius:10px;font-size:17px;cursor:pointer}
@@ -230,11 +232,13 @@
 
 <div class="wrap" id="mainwrap">
   <div class="hero" id="hero"></div>
-  <div class="filters" id="filters"></div>
+  <div class="filterrow">
+    <div class="filters" id="filters"></div>
+    <div class="legend" id="legend"></div>
+  </div>
   <div class="filters sub" id="subfilters"></div>
   <div class="monthbar">
     <div class="mtitle" id="mtitle"></div>
-    <div class="legend" id="legend"></div>
     <div class="nav"><button id="vtog" class="vtog" onclick="toggleView()">Week</button><button onclick="shiftMonth(-1)">‹</button><button class="today" onclick="goToday()">Today</button><button onclick="shiftMonth(1)">›</button></div>
   </div>
   <div class="rev" id="rev"></div>
@@ -368,7 +372,7 @@
 
 <script>
 var KEY='services_planner_v1';
-var BUILD='2026-07-01-5'; // bump on every deploy so the update banner can detect a newer version
+var BUILD='2026-07-01-6'; // bump on every deploy so the update banner can detect a newer version
 var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 var TYPES=['Blog','Social','LinkedIn','SEO','Invoice','One-time','Portal','Report','Appointment','Bill','Birthday','Health','Errand','Personal','Other'];
