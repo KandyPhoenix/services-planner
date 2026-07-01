@@ -526,7 +526,7 @@ function renderFilters(){
   var projs=projectsList();
   if(projs.indexOf(cf)<0)cf='All';
   var sub=document.getElementById('subfilters');
-  sub.innerHTML=projs.length>1?['All'].concat(projs).map(function(c){return '<button class="fbtn '+(cf===c?'on':'')+'" onclick="setFilter(\''+esc(c)+'\')">'+esc(c)+'</button>';}).join(''):'';
+  sub.innerHTML=(sf!=='All'&&projs.length)?['All'].concat(projs).map(function(c){return '<button class="fbtn '+(cf===c?'on':'')+'" onclick="setFilter(\''+esc(c)+'\')">'+esc(c)+'</button>';}).join(''):'';
 }
 function setSpace(s){sf=s;cf='All';render();}
 function setFilter(c){cf=c;render();}
