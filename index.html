@@ -30,6 +30,18 @@
   .chip b{font-size:26px;line-height:1.05;color:var(--text)}
   .chip.r b{color:var(--red)}.chip.a b{color:var(--amber)}.chip.g b{color:var(--green)}
   .wrap{max-width:1100px;margin:0 auto;padding:10px 6px 0}
+  .hero{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 2px 12px;padding:16px 18px;border-radius:16px;
+    background:linear-gradient(135deg,var(--panel2),var(--panel));border:1px solid var(--line);position:relative;overflow:hidden}
+  .hero:before{content:"";position:absolute;top:-45%;right:-8%;width:220px;height:220px;border-radius:50%;
+    background:radial-gradient(circle,var(--pink),transparent 68%);opacity:.16;pointer-events:none}
+  .hero-l{min-width:0;z-index:1}
+  .hero-greet{font-size:19px;font-weight:800}
+  .hero-date{font-size:12px;color:var(--muted);font-weight:700;margin-top:2px}
+  .hero-aff{font-size:13px;color:var(--text);opacity:.86;margin-top:9px;font-style:italic;max-width:460px}
+  .hero-r{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto;z-index:1}
+  .ring-t{fill:var(--text);font-size:17px;font-weight:800}
+  .ring-l{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .winmsg{text-align:center;font-size:14px;font-weight:800;color:var(--pink);margin-top:18px;padding:13px;background:var(--panel2);border:1px solid var(--line);border-radius:12px}
   .filters{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px}
   .fbtn{flex:0 0 auto;border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:18px;
     padding:5px 13px;font-size:12.5px;cursor:pointer;font-weight:600}
@@ -172,6 +184,7 @@
 </header>
 
 <div class="wrap">
+  <div class="hero" id="hero"></div>
   <div class="filters" id="filters"></div>
   <div class="qadd">
     <input id="qaddIn" placeholder="Quick add for today… (press Enter)" onkeydown="if(event.key==='Enter')quickAdd()">
@@ -278,6 +291,7 @@
     <button onclick="closeOv('menuOv');openMoney()">💰<span>Money</span></button>
     <button onclick="closeOv('menuOv');openGoals()">🎯<span>Goals</span></button>
     <button onclick="closeOv('menuOv');openInsights()">📈<span>Insights</span></button>
+    <button onclick="closeOv('menuOv');openWins()">🙌<span>Wins</span></button>
     <button onclick="closeOv('menuOv');openHabits()">🔥<span>Habits</span></button>
     <button onclick="closeOv('menuOv');openRules()">⚙<span>Recurring</span></button>
     <button onclick="closeOv('menuOv');openSummary()">📊<span>Summary</span></button>
@@ -286,6 +300,8 @@
 </div></div>
 
 <div class="ov" id="moneyOv"><div class="sheet"><button class="xclose" onclick="closeOv('moneyOv')">✕</button><h2 id="moneyTitle">💰 Money</h2><div id="moneyBody"></div></div></div>
+
+<div class="ov" id="winsOv"><div class="sheet"><button class="xclose" onclick="closeOv('winsOv')">✕</button><h2 id="winsTitle">🙌 Your Wins</h2><div id="winsBody"></div></div></div>
 
 <div class="ov" id="goalsOv"><div class="sheet"><button class="xclose" onclick="closeOv('goalsOv')">✕</button><h2 id="goalsTitle">🎯 Goals</h2><div id="goalsBody"></div>
   <div style="display:flex;gap:6px;margin-top:12px"><input id="goalIn" placeholder="New goal…" onkeydown="if(event.key==='Enter')addGoal()"><input id="goalTgt" type="number" min="0" placeholder="target #" style="flex:0 0 90px"></div>
@@ -439,7 +455,24 @@ function itemsIn(start,end){
 function fil(items){return cf==='All'?items:items.filter(function(i){return i.client===cf;});}
 function clientsList(){var c=[];itemsIn(addDays(todayMid(),-90),addDays(todayMid(),200)).forEach(function(i){if(c.indexOf(i.client)<0)c.push(i.client);});return c;}
 
-function render(){applyTheme();renderSummary();renderFilters();renderView();renderLegend();if(document.getElementById('dayOv').classList.contains('show'))openDay();}
+function render(){applyTheme();renderHero();renderSummary();renderFilters();renderView();renderLegend();if(document.getElementById('dayOv').classList.contains('show'))openDay();}
+var AFFIRM=["Small steps still move mountains.","You've done hard things before — today's no match.","Progress over perfection, always.","Your future self is already cheering.","One task at a time is how empires get built.","You are the calm and the lightning. ♒","Done beats perfect every time.","Every check-mark is proof you showed up.","Big dreams, tiny consistent moves.","You bring the magic — the list just holds the plan.","Momentum loves a first step.","You're closer than you were yesterday.","Trust the work; results are catching up.","Just handle the next thing.","Your business grows each time you follow through.","Rest is productive too — pace yourself.","You handle more than people realize.","Make it happen, then make it look easy.","Confidence is built one kept promise at a time.","Fresh page today — write something good.","Your effort compounds. Keep going.","Steady wins, and you are steady.","Be proud of how far you've come.","Great things get built on ordinary days.","You're a work in progress AND a masterpiece.","Show up for you like you do for everyone else.","The list is long because your vision is big.","Breathe. You've got this one."];
+function affirmOfDay(){var d=todayMid();return AFFIRM[(d.getFullYear()*372+d.getMonth()*31+d.getDate())%AFFIRM.length];}
+function greetWord(){var h=new Date().getHours();return h<12?'Good morning':h<18?'Good afternoon':'Good evening';}
+function greetEmoji(){var h=new Date().getHours();return h<12?'☀️':h<18?'🌤️':'🌙';}
+function progressRing(pct){var r=30,c=(2*Math.PI*r).toFixed(1),off=(c*(1-pct/100)).toFixed(1);
+  return '<svg class="ring" viewBox="0 0 76 76" width="72" height="72"><circle cx="38" cy="38" r="'+r+'" fill="none" stroke="var(--line)" stroke-width="7"/>'+
+    '<circle cx="38" cy="38" r="'+r+'" fill="none" stroke="var(--pink)" stroke-width="7" stroke-linecap="round" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'" transform="rotate(-90 38 38)" style="transition:stroke-dashoffset .5s"/>'+
+    '<text x="38" y="38" text-anchor="middle" dominant-baseline="central" class="ring-t">'+pct+'%</text></svg>';}
+function renderHero(){
+  var t=todayMid(),today=fil(itemsIn(t,t)),done=today.filter(function(i){return i.done;}).length,total=today.length,pct=total?Math.round(done/total*100):0;
+  var label=total?(done+'/'+total+' today'):'clear day ✨';
+  document.getElementById('hero').innerHTML=
+    '<div class="hero-l"><div class="hero-greet">'+greetEmoji()+' '+greetWord()+', Kandy</div>'+
+    '<div class="hero-date">'+t.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+'</div>'+
+    '<div class="hero-aff">“'+esc(affirmOfDay())+'”</div></div>'+
+    '<div class="hero-r">'+progressRing(pct)+'<div class="ring-l">'+label+'</div></div>';
+}
 function renderView(){if(vmode==='week')renderWeek();else renderMonth();}
 
 function renderSummary(){
@@ -558,6 +591,7 @@ function refreshOpen(){
   if(document.getElementById('moneyOv').classList.contains('show'))openMoney();
   if(document.getElementById('goalsOv').classList.contains('show'))renderGoals();
   if(document.getElementById('habitsOv').classList.contains('show'))renderHabits();
+  if(document.getElementById('winsOv').classList.contains('show'))openWins();
 }
 var uidc=0;function uid(){return 'o'+Date.now()+'_'+(uidc++);}
 function moveKey(key,nd){
@@ -843,9 +877,25 @@ function renderGoals(){
   }).join(''):'<div style="color:var(--muted);padding:8px 0">No goals yet. Add one below.</div>';
 }
 function addGoal(){var t=document.getElementById('goalIn').value.trim();if(!t)return;var tgt=+document.getElementById('goalTgt').value||0;S.goals.push({id:'g'+Date.now(),text:t,month:curMonthKey(),target:tgt,progress:0,done:false});document.getElementById('goalIn').value='';document.getElementById('goalTgt').value='';save();renderGoals();}
-function goalDone(idx){S.goals[idx].done=!S.goals[idx].done;save();renderGoals();}
-function goalProg(idx,d){var g=S.goals[idx];g.progress=Math.max(0,(g.progress||0)+d);if(g.target&&g.progress>=g.target)g.done=true;save();renderGoals();}
+function goalDone(idx){var g=S.goals[idx],was=g.done;g.done=!g.done;save();renderGoals();if(g.done&&!was){toast('🎯 Goal smashed: '+g.text);celebrate();}}
+function goalProg(idx,d){var g=S.goals[idx],was=g.done;g.progress=Math.max(0,(g.progress||0)+d);if(g.target&&g.progress>=g.target)g.done=true;save();renderGoals();if(g.done&&!was){toast('🎯 Goal complete: '+g.text);celebrate();}}
 function delGoal(idx){if(confirm('Delete this goal?')){S.goals.splice(idx,1);save();renderGoals();}}
+
+// ---- Wins recap ----
+function openWins(){
+  var t=todayMid(),ws=addDays(t,-6);
+  document.getElementById('winsTitle').textContent='🙌 Your Wins · last 7 days';
+  var items=fil(itemsIn(ws,t)),done=items.filter(function(i){return i.done;}).sort(function(a,b){return a.date<b.date?1:-1;});
+  var earned=done.reduce(function(s,i){return s+((i.amount&&!isExpense(i.type))?i.amount:0);},0),hrs=sumDur(done);
+  var habitChecks=0;for(var k=0;k<7;k++){var di=iso(addDays(t,-k));S.habits.forEach(function(h){if(S.habitlog[h.id+'|'+di])habitChecks++;});}
+  var body='<div class="mcards">'+mcard('Done',done.length,'g')+mcard('Earned',money(earned),'')+mcard('Focused',fmtDur(hrs)||'0m','')+mcard('Habit ✓',habitChecks,'a')+'</div>';
+  if(done.length)body+='<div class="agh">✅ What you shipped</div>'+done.map(function(i){return rowHTML(i,false);}).join('');
+  else body+='<div style="color:var(--muted);padding:14px 0">A fresh week ahead — your first win is one tap away. 💪</div>';
+  var msgs=['You showed up. That\'s the whole game. 🙌','Look at everything you moved this week!','Future-you is grateful right now. 💗','Momentum looks good on you.','This is what consistency builds. Keep going.'];
+  body+='<div class="winmsg">'+msgs[t.getDate()%msgs.length]+'</div>';
+  document.getElementById('winsBody').innerHTML=body;
+  document.getElementById('winsOv').classList.add('show');
+}
 
 // ---- Insights ----
 function openInsights(){renderInsights(30);document.getElementById('insightsOv').classList.add('show');}
@@ -884,7 +934,8 @@ function renderHabits(){
   }).join(''):'<div style="color:var(--muted);padding:8px 0">No habits yet. Add one below (e.g. 💧 Drink water).</div>';
 }
 function addHabit(){var n=document.getElementById('habName').value.trim();if(!n)return;var e=document.getElementById('habEmoji').value.trim();S.habits.push({id:'h'+Date.now(),emoji:e,name:n});document.getElementById('habName').value='';document.getElementById('habEmoji').value='';save();renderHabits();}
-function toggleHabit(id){var k=id+'|'+iso(todayMid());if(S.habitlog[k])delete S.habitlog[k];else S.habitlog[k]=true;save();renderHabits();}
+function toggleHabit(id){var k=id+'|'+iso(todayMid()),on=!S.habitlog[k];if(on)S.habitlog[k]=true;else delete S.habitlog[k];save();renderHabits();
+  if(on){var st=habitStreak(id);if(st>0&&st%7===0){toast('🔥 '+st+'-day streak! Incredible.');celebrate();}}}
 function delHabit(id){if(confirm('Delete this habit?')){S.habits=S.habits.filter(function(h){return h.id!==id;});save();renderHabits();}}
 
 // ---- Theme / heatmap controls ----
