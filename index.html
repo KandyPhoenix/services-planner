@@ -54,8 +54,12 @@
   #listsTabs{overflow-x:auto}
   body.boardmode{overflow:hidden;padding-bottom:0}
   .board{display:none;gap:12px;padding:12px;overflow-x:auto;overflow-y:hidden;align-items:stretch;scroll-snap-type:x proximity}
-  .widget{flex:0 0 300px;scroll-snap-align:start;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;max-height:100%}
-  .wtitle{padding:12px 14px;font-weight:800;font-size:14px;border-bottom:1px solid var(--line);flex:0 0 auto}
+  .widget{position:relative;flex:0 0 300px;scroll-snap-align:start;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;max-height:100%}
+  .wtitle{padding:12px 14px;font-weight:800;font-size:14px;border-bottom:1px solid var(--line);flex:0 0 auto;cursor:grab;user-select:none}
+  .wtitle:active{cursor:grabbing}
+  .grip{color:var(--muted);font-size:12px;margin-right:3px}
+  .wresize{position:absolute;top:0;right:0;width:9px;height:100%;cursor:ew-resize;z-index:3}
+  .wresize:hover{background:linear-gradient(90deg,transparent,rgba(255,28,141,.4))}
   .wbody{flex:1 1 auto;overflow-y:auto;padding:6px 12px;min-height:0}
   .wadd{flex:0 0 auto;padding:8px 12px;border-top:1px solid var(--line)}
   .wadd input{padding:8px 10px;font-size:13px}
@@ -325,6 +329,10 @@
     <label class="sw" style="margin:0"><input type="checkbox" id="setLight" onchange="setLight(this.checked)"><span class="sl"></span></label>
     ☀️ Light mode</label>
 
+  <label style="margin-top:18px">🧩 Board layout</label>
+  <div class="hint" style="text-align:left;margin:0 0 6px">Drag a card's title to reorder; drag its right edge to resize. Your layout is saved.</div>
+  <button class="ghost" style="position:static;width:100%" onclick="resetBoard()">↺ Reset board layout</button>
+
   <label style="margin-top:18px">🔥 Workload heatmap</label>
   <label style="display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);cursor:pointer">
     <label class="sw" style="margin:0"><input type="checkbox" id="setHeat" onchange="setHeat(this.checked)"><span class="sl"></span></label>
@@ -373,7 +381,7 @@
 
 <script>
 var KEY='services_planner_v1';
-var BUILD='2026-07-02-1'; // bump on every deploy so the update banner can detect a newer version
+var BUILD='2026-07-02-2'; // bump on every deploy so the update banner can detect a newer version
 var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 var TYPES=['Blog','Social','LinkedIn','SEO','Invoice','One-time','Portal','Report','Appointment','Bill','Birthday','Health','Errand','Personal','Other'];
@@ -447,6 +455,7 @@ function ensureShape(o){
   o.paid=o.paid||{};o.goals=o.goals||[];o.habits=o.habits||[];o.habitlog=o.habitlog||{};
   if(o.settings.heatmap===undefined)o.settings.heatmap=true;
   o.settings.accent=o.settings.accent||'#ff1c8d';
+  o.settings.board=o.settings.board||{order:[],widths:{}};
   if(!o.seededLife){
     [{id:'anniversary',client:'Personal',type:'Personal',title:'💍 Wedding anniversary',freq:'yearly',month:3,dom:10,active:true,pri:true},
      {id:'birthday',client:'Personal',type:'Birthday',title:'🎂 My birthday',freq:'yearly',month:0,dom:27,active:true}
@@ -965,20 +974,51 @@ function bListRow(l,it,i){
 function bHabitRow(h){var on=!!S.habitlog[h.id+'|'+iso(todayMid())],st=habitStreak(h.id);return '<div class="brow"><div class="check sm '+(on?'on':'')+'" onclick="bHabit(\''+h.id+'\')">'+(on?'✓':'')+'</div><div class="btxt">'+(h.emoji?esc(h.emoji)+' ':'')+esc(h.name)+(st?' <span class="mut">🔥'+st+'</span>':'')+'</div></div>';}
 function bGoalRow(g){var idx=S.goals.indexOf(g),prog=g.target>0?' <span class="mut">'+g.progress+'/'+g.target+'</span>':'';return '<div class="brow"><div class="check sm '+(g.done?'on':'')+'" onclick="bGoalDone('+idx+')">'+(g.done?'✓':'')+'</div><div class="btxt '+(g.done?'done':'')+'">'+esc(g.text)+prog+'</div></div>';}
 function moneyMini(){var first=new Date(viewY,viewM,1),mEnd=new Date(viewY,viewM,lastDom(viewY,viewM)),m=fil(itemsIn(first,mEnd)),billed=0,paid=0;m.forEach(function(i){if(i.amount&&!isExpense(i.type)){billed+=i.amount;if(isPaid(i))paid+=i.amount;}});return '<div class="mmini"><div><b>'+money(billed)+'</b><span>billed</span></div><div><b class="g">'+money(paid)+'</b><span>paid</span></div><div><b class="a">'+money(billed-paid)+'</b><span>outstanding</span></div></div>';}
+function boardWidgets(){
+  var t=todayMid(),W=[];
+  var today=fil(itemsIn(t,t)).sort(cmpItem);
+  W.push({id:'today',title:'📆 Today',body:today.length?today.map(bTaskRow).join(''):emptyW('All clear ✨'),footer:'<div class="wadd"><input id="bqadd" placeholder="+ add to today" onkeydown="if(event.key===&quot;Enter&quot;)bAddToday()"></div>'});
+  var up=fil(itemsIn(addDays(t,1),addDays(t,7))).filter(function(i){return !i.done;}).sort(function(a,b){return a.date===b.date?cmpItem(a,b):(a.date<b.date?-1:1);});
+  W.push({id:'next7',title:'🗓 Next 7 days',body:up.length?up.map(bUpRow).join(''):emptyW('Nothing coming up')});
+  S.lists.forEach(function(l){W.push({id:'list:'+l.id,title:l.emoji+' '+esc(l.name),body:(l.items||[]).length?l.items.map(function(it,i){return bListRow(l,it,i);}).join(''):emptyW('Empty'),footer:'<div class="wadd"><input id="bl_'+l.id+'" placeholder="+ add" onkeydown="if(event.key===&quot;Enter&quot;)bListAdd(\''+l.id+'\')"></div>'});});
+  W.push({id:'habits',title:'🔥 Habits',body:S.habits.length?S.habits.map(bHabitRow).join(''):emptyW('No habits yet')});
+  var mk=curMonthKey(),goals=S.goals.filter(function(g){return g.month===mk||g.month==='ongoing';});
+  W.push({id:'goals',title:'🎯 Goals',body:goals.length?goals.map(bGoalRow).join(''):emptyW('No goals')});
+  W.push({id:'money',title:'💰 Money',body:moneyMini()});
+  return W;
+}
+function orderedWidgets(){
+  var W=boardWidgets(),byId={};W.forEach(function(w){byId[w.id]=w;});
+  var ord=(S.settings.board&&S.settings.board.order)||[],out=[];
+  ord.forEach(function(id){if(byId[id]){out.push(byId[id]);delete byId[id];}});
+  W.forEach(function(w){if(byId[w.id])out.push(w);});
+  return out;
+}
 function renderBoard(){
   sizeBoard();
-  var t=todayMid(),cards='';
-  var today=fil(itemsIn(t,t)).sort(cmpItem);
-  cards+=widget('📆 Today', today.length?today.map(bTaskRow).join(''):emptyW('All clear ✨'), '<div class="wadd"><input id="bqadd" placeholder="+ add to today" onkeydown="if(event.key===&quot;Enter&quot;)bAddToday()"></div>');
-  var up=fil(itemsIn(addDays(t,1),addDays(t,7))).filter(function(i){return !i.done;}).sort(function(a,b){return a.date===b.date?cmpItem(a,b):(a.date<b.date?-1:1);});
-  cards+=widget('🗓 Next 7 days', up.length?up.map(bUpRow).join(''):emptyW('Nothing coming up'));
-  S.lists.forEach(function(l){cards+=widget(l.emoji+' '+esc(l.name), (l.items||[]).length?l.items.map(function(it,i){return bListRow(l,it,i);}).join(''):emptyW('Empty'), '<div class="wadd"><input id="bl_'+l.id+'" placeholder="+ add" onkeydown="if(event.key===&quot;Enter&quot;)bListAdd(\''+l.id+'\')"></div>');});
-  cards+=widget('🔥 Habits', S.habits.length?S.habits.map(bHabitRow).join(''):emptyW('No habits yet'));
-  var mk=curMonthKey(),goals=S.goals.filter(function(g){return g.month===mk||g.month==='ongoing';});
-  cards+=widget('🎯 Goals', goals.length?goals.map(bGoalRow).join(''):emptyW('No goals'));
-  cards+=widget('💰 Money', moneyMini());
-  document.getElementById('board').innerHTML=cards;
+  var widths=(S.settings.board&&S.settings.board.widths)||{};
+  document.getElementById('board').innerHTML=orderedWidgets().map(function(w){
+    var wd=widths[w.id],st=wd?(' style="flex:0 0 '+wd+'px;width:'+wd+'px"'):'';
+    return '<div class="widget" data-wid="'+w.id+'"'+st+' ondragover="event.preventDefault()" ondrop="boardDrop(event,\''+w.id+'\')">'+
+      '<div class="wtitle" draggable="true" ondragstart="boardDrag(event,\''+w.id+'\')" title="Drag to reorder"><span class="grip">⠿</span> '+w.title+'</div>'+
+      '<div class="wbody">'+w.body+'</div>'+(w.footer||'')+
+      '<div class="wresize" title="Drag to resize" onmousedown="boardResizeStart(event,\''+w.id+'\')"></div>'+
+    '</div>';
+  }).join('');
 }
+var boardDragId=null;
+function boardDrag(e,id){boardDragId=id;try{e.dataTransfer.setData('text/plain',id);e.dataTransfer.effectAllowed='move';}catch(_){}}
+function boardDrop(e,targetId){e.preventDefault();var src=boardDragId||(e.dataTransfer&&e.dataTransfer.getData('text/plain'));boardDragId=null;if(!src||src===targetId)return;
+  var ids=orderedWidgets().map(function(w){return w.id;}),from=ids.indexOf(src),to=ids.indexOf(targetId);if(from<0||to<0)return;
+  ids.splice(from,1);ids.splice(to,0,src);
+  if(!S.settings.board)S.settings.board={order:[],widths:{}};S.settings.board.order=ids;save();renderBoard();}
+var rz=null;
+function boardResizeStart(e,id){e.preventDefault();var el=e.target.closest('.widget');rz={id:id,el:el,startX:e.clientX,startW:el.offsetWidth,lastW:el.offsetWidth};
+  document.addEventListener('mousemove',boardResizeMove);document.addEventListener('mouseup',boardResizeEnd);}
+function boardResizeMove(e){if(!rz)return;var w=Math.max(210,Math.min(760,rz.startW+(e.clientX-rz.startX)));rz.el.style.flex='0 0 '+w+'px';rz.el.style.width=w+'px';rz.lastW=w;}
+function boardResizeEnd(){if(!rz)return;document.removeEventListener('mousemove',boardResizeMove);document.removeEventListener('mouseup',boardResizeEnd);
+  if(!S.settings.board)S.settings.board={order:[],widths:{}};if(!S.settings.board.widths)S.settings.board.widths={};S.settings.board.widths[rz.id]=Math.round(rz.lastW);save();rz=null;}
+function resetBoard(){S.settings.board={order:[],widths:{}};save();if(boardMode)renderBoard();alert('Board layout reset.');}
 function bAddToday(){var e=document.getElementById('bqadd'),v=e?e.value.trim():'';if(!v)return;var sp=sf!=='All'?sf:'Life';S.oneoffs.push({id:'o'+Date.now(),title:v,space:sp,client:(cf!=='All'?cf:(sp==='Life'?'Personal':sp)),type:sp==='Life'?'Personal':'Other',due:iso(todayMid()),done:false});save();renderBoard();}
 function bListAdd(lid){var e=document.getElementById('bl_'+lid),v=e?e.value.trim():'';if(!v)return;var l=S.lists.filter(function(x){return x.id===lid;})[0];if(!l)return;var it={id:'i'+Date.now(),text:v};if(l.type==='checklist'||l.type==='buy')it.done=false;l.items.unshift(it);save();renderBoard();}
 function bListToggle(lid,i){var l=S.lists.filter(function(x){return x.id===lid;})[0];if(l&&l.items[i]){l.items[i].done=!l.items[i].done;save();renderBoard();}}
