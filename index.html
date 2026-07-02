@@ -53,13 +53,15 @@
   .litxt.sdone{color:var(--muted);text-decoration:line-through}
   #listsTabs{overflow-x:auto}
   body.boardmode{overflow:hidden;padding-bottom:0}
-  .board{display:none;gap:12px;padding:12px;overflow-x:auto;overflow-y:hidden;align-items:stretch;scroll-snap-type:x proximity}
-  .widget{position:relative;flex:0 0 300px;scroll-snap-align:start;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;max-height:100%}
-  .wtitle{padding:12px 14px;font-weight:800;font-size:14px;border-bottom:1px solid var(--line);flex:0 0 auto;cursor:grab;user-select:none}
-  .wtitle:active{cursor:grabbing}
+  .board{display:none;overflow:auto;position:relative}
+  .bcanvas{position:relative;min-width:100%}
+  .widget{position:absolute;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+  .widget.dragging{opacity:.9;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+  .wtitle{padding:11px 14px;font-weight:800;font-size:14px;border-bottom:1px solid var(--line);flex:0 0 auto;cursor:move;user-select:none}
   .grip{color:var(--muted);font-size:12px;margin-right:3px}
-  .wresize{position:absolute;top:0;right:0;width:9px;height:100%;cursor:ew-resize;z-index:3}
-  .wresize:hover{background:linear-gradient(90deg,transparent,rgba(255,28,141,.4))}
+  .wresize{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:3;
+    background:linear-gradient(135deg,transparent 50%,var(--muted) 50%,var(--muted) 62%,transparent 62%,transparent 74%,var(--muted) 74%,var(--muted) 86%,transparent 86%)}
+  .wresize:hover{filter:brightness(1.8)}
   .wbody{flex:1 1 auto;overflow-y:auto;padding:6px 12px;min-height:0}
   .wadd{flex:0 0 auto;padding:8px 12px;border-top:1px solid var(--line)}
   .wadd input{padding:8px 10px;font-size:13px}
@@ -381,7 +383,7 @@
 
 <script>
 var KEY='services_planner_v1';
-var BUILD='2026-07-02-2'; // bump on every deploy so the update banner can detect a newer version
+var BUILD='2026-07-02-3'; // bump on every deploy so the update banner can detect a newer version
 var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 var TYPES=['Blog','Social','LinkedIn','SEO','Invoice','One-time','Portal','Report','Appointment','Bill','Birthday','Health','Errand','Personal','Other'];
@@ -455,7 +457,7 @@ function ensureShape(o){
   o.paid=o.paid||{};o.goals=o.goals||[];o.habits=o.habits||[];o.habitlog=o.habitlog||{};
   if(o.settings.heatmap===undefined)o.settings.heatmap=true;
   o.settings.accent=o.settings.accent||'#ff1c8d';
-  o.settings.board=o.settings.board||{order:[],widths:{}};
+  o.settings.board=o.settings.board||{};o.settings.board.pos=o.settings.board.pos||{};
   if(!o.seededLife){
     [{id:'anniversary',client:'Personal',type:'Personal',title:'💍 Wedding anniversary',freq:'yearly',month:3,dom:10,active:true,pri:true},
      {id:'birthday',client:'Personal',type:'Birthday',title:'🎂 My birthday',freq:'yearly',month:0,dom:27,active:true}
@@ -956,7 +958,7 @@ function toggleBoard(){
   boardMode=!boardMode;
   document.body.classList.toggle('boardmode',boardMode);
   document.getElementById('mainwrap').style.display=boardMode?'none':'';
-  document.getElementById('board').style.display=boardMode?'flex':'none';
+  document.getElementById('board').style.display=boardMode?'block':'none';
   var b=document.getElementById('boardBtn');if(b)b.textContent=boardMode?'📅 Calendar':'🧩 Board';
   if(boardMode)renderBoard();
 }
@@ -987,38 +989,39 @@ function boardWidgets(){
   W.push({id:'money',title:'💰 Money',body:moneyMini()});
   return W;
 }
-function orderedWidgets(){
-  var W=boardWidgets(),byId={};W.forEach(function(w){byId[w.id]=w;});
-  var ord=(S.settings.board&&S.settings.board.order)||[],out=[];
-  ord.forEach(function(id){if(byId[id]){out.push(byId[id]);delete byId[id];}});
-  W.forEach(function(w){if(byId[w.id])out.push(w);});
-  return out;
-}
 function renderBoard(){
   sizeBoard();
-  var widths=(S.settings.board&&S.settings.board.widths)||{};
-  document.getElementById('board').innerHTML=orderedWidgets().map(function(w){
-    var wd=widths[w.id],st=wd?(' style="flex:0 0 '+wd+'px;width:'+wd+'px"'):'';
-    return '<div class="widget" data-wid="'+w.id+'"'+st+' ondragover="event.preventDefault()" ondrop="boardDrop(event,\''+w.id+'\')">'+
-      '<div class="wtitle" draggable="true" ondragstart="boardDrag(event,\''+w.id+'\')" title="Drag to reorder"><span class="grip">⠿</span> '+w.title+'</div>'+
+  if(!S.settings.board)S.settings.board={};if(!S.settings.board.pos)S.settings.board.pos={};
+  var pos=S.settings.board.pos,board=document.getElementById('board');
+  var cw=board.clientWidth||1000,COLW=320,GAP=12,cols=Math.max(1,Math.floor((cw-GAP)/(COLW+GAP))),changed=false;
+  var html=boardWidgets().map(function(w,idx){
+    var p=pos[w.id];
+    if(!p){var col=idx%cols,row=Math.floor(idx/cols);p={x:GAP+col*(COLW+GAP),y:GAP+row*312,w:COLW,h:300};pos[w.id]=p;changed=true;}
+    return '<div class="widget" data-wid="'+w.id+'" style="left:'+p.x+'px;top:'+p.y+'px;width:'+p.w+'px;height:'+p.h+'px">'+
+      '<div class="wtitle" onmousedown="boardMoveStart(event,\''+w.id+'\')" title="Drag to move"><span class="grip">⠿</span> '+w.title+'</div>'+
       '<div class="wbody">'+w.body+'</div>'+(w.footer||'')+
-      '<div class="wresize" title="Drag to resize" onmousedown="boardResizeStart(event,\''+w.id+'\')"></div>'+
+      '<div class="wresize" onmousedown="boardResizeStart(event,\''+w.id+'\')" title="Drag to resize"></div>'+
     '</div>';
   }).join('');
+  board.innerHTML='<div class="bcanvas" id="bcanvas">'+html+'</div>';
+  if(changed)save();
+  sizeCanvas();
 }
-var boardDragId=null;
-function boardDrag(e,id){boardDragId=id;try{e.dataTransfer.setData('text/plain',id);e.dataTransfer.effectAllowed='move';}catch(_){}}
-function boardDrop(e,targetId){e.preventDefault();var src=boardDragId||(e.dataTransfer&&e.dataTransfer.getData('text/plain'));boardDragId=null;if(!src||src===targetId)return;
-  var ids=orderedWidgets().map(function(w){return w.id;}),from=ids.indexOf(src),to=ids.indexOf(targetId);if(from<0||to<0)return;
-  ids.splice(from,1);ids.splice(to,0,src);
-  if(!S.settings.board)S.settings.board={order:[],widths:{}};S.settings.board.order=ids;save();renderBoard();}
+function sizeCanvas(){var c=document.getElementById('bcanvas');if(!c)return;var mr=600,mb=300;
+  [].forEach.call(c.querySelectorAll('.widget'),function(el){mr=Math.max(mr,el.offsetLeft+el.offsetWidth+40);mb=Math.max(mb,el.offsetTop+el.offsetHeight+40);});
+  c.style.width=mr+'px';c.style.height=mb+'px';}
+function savePos(id){var el=document.querySelector('[data-wid="'+id+'"]');if(!el)return;
+  if(!S.settings.board)S.settings.board={};if(!S.settings.board.pos)S.settings.board.pos={};
+  S.settings.board.pos[id]={x:Math.round(el.offsetLeft),y:Math.round(el.offsetTop),w:Math.round(el.offsetWidth),h:Math.round(el.offsetHeight)};save();}
+var mv=null;
+function boardMoveStart(e,id){if(e.button)return;e.preventDefault();var el=e.target.closest('.widget');mv={el:el,id:id,sx:e.clientX,sy:e.clientY,ox:el.offsetLeft,oy:el.offsetTop};el.style.zIndex=20;el.classList.add('dragging');document.addEventListener('mousemove',boardMoveMove);document.addEventListener('mouseup',boardMoveEnd);}
+function boardMoveMove(e){if(!mv)return;mv.el.style.left=Math.max(0,mv.ox+(e.clientX-mv.sx))+'px';mv.el.style.top=Math.max(0,mv.oy+(e.clientY-mv.sy))+'px';}
+function boardMoveEnd(){if(!mv)return;document.removeEventListener('mousemove',boardMoveMove);document.removeEventListener('mouseup',boardMoveEnd);mv.el.style.zIndex='';mv.el.classList.remove('dragging');savePos(mv.id);sizeCanvas();mv=null;}
 var rz=null;
-function boardResizeStart(e,id){e.preventDefault();var el=e.target.closest('.widget');rz={id:id,el:el,startX:e.clientX,startW:el.offsetWidth,lastW:el.offsetWidth};
-  document.addEventListener('mousemove',boardResizeMove);document.addEventListener('mouseup',boardResizeEnd);}
-function boardResizeMove(e){if(!rz)return;var w=Math.max(210,Math.min(760,rz.startW+(e.clientX-rz.startX)));rz.el.style.flex='0 0 '+w+'px';rz.el.style.width=w+'px';rz.lastW=w;}
-function boardResizeEnd(){if(!rz)return;document.removeEventListener('mousemove',boardResizeMove);document.removeEventListener('mouseup',boardResizeEnd);
-  if(!S.settings.board)S.settings.board={order:[],widths:{}};if(!S.settings.board.widths)S.settings.board.widths={};S.settings.board.widths[rz.id]=Math.round(rz.lastW);save();rz=null;}
-function resetBoard(){S.settings.board={order:[],widths:{}};save();if(boardMode)renderBoard();alert('Board layout reset.');}
+function boardResizeStart(e,id){e.preventDefault();e.stopPropagation();var el=e.target.closest('.widget');rz={el:el,id:id,sx:e.clientX,sy:e.clientY,sw:el.offsetWidth,sh:el.offsetHeight};document.addEventListener('mousemove',boardResizeMove);document.addEventListener('mouseup',boardResizeEnd);}
+function boardResizeMove(e){if(!rz)return;rz.el.style.width=Math.max(200,Math.min(1000,rz.sw+(e.clientX-rz.sx)))+'px';rz.el.style.height=Math.max(110,Math.min(1400,rz.sh+(e.clientY-rz.sy)))+'px';}
+function boardResizeEnd(){if(!rz)return;document.removeEventListener('mousemove',boardResizeMove);document.removeEventListener('mouseup',boardResizeEnd);savePos(rz.id);sizeCanvas();rz=null;}
+function resetBoard(){S.settings.board={pos:{}};save();if(boardMode)renderBoard();alert('Board layout reset.');}
 function bAddToday(){var e=document.getElementById('bqadd'),v=e?e.value.trim():'';if(!v)return;var sp=sf!=='All'?sf:'Life';S.oneoffs.push({id:'o'+Date.now(),title:v,space:sp,client:(cf!=='All'?cf:(sp==='Life'?'Personal':sp)),type:sp==='Life'?'Personal':'Other',due:iso(todayMid()),done:false});save();renderBoard();}
 function bListAdd(lid){var e=document.getElementById('bl_'+lid),v=e?e.value.trim():'';if(!v)return;var l=S.lists.filter(function(x){return x.id===lid;})[0];if(!l)return;var it={id:'i'+Date.now(),text:v};if(l.type==='checklist'||l.type==='buy')it.done=false;l.items.unshift(it);save();renderBoard();}
 function bListToggle(lid,i){var l=S.lists.filter(function(x){return x.id===lid;})[0];if(l&&l.items[i]){l.items[i].done=!l.items[i].done;save();renderBoard();}}
